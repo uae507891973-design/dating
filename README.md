@@ -5,6 +5,7 @@
 ## Документация
 
 - [Исследование рынка (РФ, 2025)](docs/research/dating-market-ru.md)
+- [Исследование функций: объяснимый мэтчинг и видеознакомство «вслепую»](docs/research/feature-research-matching-video.md)
 - [Анализ функционала конкурентов](docs/product/competitor-analysis.md)
 - [Дорожная карта](docs/product/roadmap.md)
 - [Customer Journey Map](docs/product/cjm.md)

@@ -10,6 +10,13 @@
 - [Дорожная карта](docs/product/roadmap.md)
 - [Поэтапный план разработки](docs/product/development-plan.md)
 - [Подробные этапы реализации](docs/product/implementation-stages.md)
+- Детальное описание стадий:
+  - [Стадия 0 — Подготовка и фундамент](docs/product/stages/stage-0-foundation.md)
+  - [Стадия 1 — MVP-ядро](docs/product/stages/stage-1-mvp-core.md)
+  - [Стадия 2 — Мэтчинг и общение](docs/product/stages/stage-2-matching-chat.md)
+  - [Стадия 3 — Доверие, видео, антифрод](docs/product/stages/stage-3-trust-video.md)
+  - [Стадия 4 — Монетизация](docs/product/stages/stage-4-monetization.md)
+  - [Стадия 5 — Рост и масштаб](docs/product/stages/stage-5-growth-scale.md)
 - [Customer Journey Map](docs/product/cjm.md)
 - [План реализации продукта (+ оригинальные идеи)](docs/product/implementation-plan.md)
 

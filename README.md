@@ -9,6 +9,7 @@
 - [Анализ функционала конкурентов](docs/product/competitor-analysis.md)
 - [Дорожная карта](docs/product/roadmap.md)
 - [Поэтапный план разработки](docs/product/development-plan.md)
+- [Подробные этапы реализации](docs/product/implementation-stages.md)
 - [Customer Journey Map](docs/product/cjm.md)
 - [План реализации продукта (+ оригинальные идеи)](docs/product/implementation-plan.md)
 

@@ -17,6 +17,11 @@
   - [Стадия 3 — Доверие, видео, антифрод](docs/product/stages/stage-3-trust-video.md)
   - [Стадия 4 — Монетизация](docs/product/stages/stage-4-monetization.md)
   - [Стадия 5 — Рост и масштаб](docs/product/stages/stage-5-growth-scale.md)
+
+## Код
+
+- [`backend/`](backend/) — API-сервис (FastAPI). Запуск: `docker compose up --build`, далее http://localhost:8000/docs
+- Стадия 0 (фундамент) реализована: каркас приложения, слой БД + миграции, healthcheck, аналитика, Docker/Compose, CI.
 - [Customer Journey Map](docs/product/cjm.md)
 - [План реализации продукта (+ оригинальные идеи)](docs/product/implementation-plan.md)
 

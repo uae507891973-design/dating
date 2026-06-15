@@ -1,0 +1,20 @@
+[project]
+name = "epic-davinci-backend"
+version = "0.1.0"
+description = "Backend сервиса серьёзных знакомств"
+requires-python = ">=3.11"
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+exclude = ["migrations/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+# B008: FastAPI требует вызов Depends() в значениях по умолчанию.
+ignore = ["B008"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]

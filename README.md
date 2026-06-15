@@ -22,6 +22,7 @@
 
 - [`backend/`](backend/) — API-сервис (FastAPI). Запуск: `docker compose up --build`, далее http://localhost:8000/docs
 - Стадия 0 (фундамент) реализована: каркас приложения, слой БД + миграции, healthcheck, аналитика, Docker/Compose, CI.
+- Стадия 1.1 реализована: регистрация по SMS-OTP, JWT (access/refresh), фиксация согласий (152-ФЗ).
 - [Customer Journey Map](docs/product/cjm.md)
 - [План реализации продукта (+ оригинальные идеи)](docs/product/implementation-plan.md)
 

@@ -1,6 +1,7 @@
 """ORM-модели."""
 
 from app.models.consent import Consent
+from app.models.matching import Like, Match
 from app.models.photo import Photo
 from app.models.profile import Profile
 from app.models.psychotest import Psychoprofile, PsychotestAnswer
@@ -23,4 +24,6 @@ __all__ = [
     "Report",
     "Block",
     "AuditLog",
+    "Like",
+    "Match",
 ]

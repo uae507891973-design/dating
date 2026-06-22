@@ -78,4 +78,12 @@ tests/               # pytest
 - **Функция совместимости** (`services/compatibility.py`) — взвешенный по важности скоринг 0..100 + вклад категорий (сырьё для объяснимого мэтчинга, Стадия 2).
 - Событие аналитики `test_completed`.
 
+## Что сделано на Стадии 1.3 (анкета и модерация контента)
+- CRUD анкеты: `GET/PUT /v1/profile` с проверкой возраста **18+**.
+- Загрузка фото `POST /v1/profile/photos` (multipart), список и удаление; лимит фото и размера.
+- **Авто-модерация (NSFW)**: классификатор-заглушка + пороги → `approved` / `pending` (ручная проверка) / `rejected`.
+- Хранилище медиа (локальное, интерфейс под объектное хранилище РФ).
+- **Модераторская очередь** (RBAC: moderator/admin): `GET /v1/moderation/photos`, `POST /v1/moderation/photos/{id}/decision`.
+- События аналитики: `profile_completed`, `photo_uploaded`, `photo_moderated`.
+
 > PostGIS-геометрия запланирована: на фундаменте координаты хранятся как `latitude/longitude` (Float), миграция на `geography(Point)` — в рамках Стадии 2 (подбор по гео).

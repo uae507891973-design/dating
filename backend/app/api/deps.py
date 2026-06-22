@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import TokenError, decode_token
 from app.db.session import get_db
 from app.models import User
+from app.models.user import UserRole
 
 
 async def get_current_user(
@@ -32,5 +33,16 @@ async def get_current_user(
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="user not found"
+        )
+    return user
+
+
+async def get_current_moderator(
+    user: User = Depends(get_current_user),
+) -> User:
+    """Доступ только для модераторов/администраторов (RBAC)."""
+    if user.role not in (UserRole.moderator, UserRole.admin):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="moderator role required"
         )
     return user

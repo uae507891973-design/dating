@@ -1,11 +1,13 @@
 """Фикстуры тестов."""
 
 import os
+import tempfile
 
 # Тестовое окружение должно быть задано до импорта приложения/настроек.
 os.environ.setdefault("OTP_BACKEND", "memory")
 os.environ.setdefault("JWT_SECRET", "test-secret")
 os.environ.setdefault("ENVIRONMENT", "test")
+os.environ.setdefault("MEDIA_DIR", tempfile.mkdtemp(prefix="davinci-media-"))
 
 import pytest  # noqa: E402
 from httpx import ASGITransport, AsyncClient  # noqa: E402
@@ -40,6 +42,13 @@ async def _setup_db():
 @pytest.fixture
 def otp_store() -> MemoryOTPStore:
     return MemoryOTPStore()
+
+
+@pytest.fixture
+async def session():
+    """Прямой доступ к тестовой БД (для подготовки данных)."""
+    async with TestSession() as s:
+        yield s
 
 
 @pytest.fixture

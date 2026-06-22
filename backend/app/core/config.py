@@ -43,6 +43,16 @@ class Settings(BaseSettings):
     # Безопасность / возрастной ценз
     min_user_age: int = 18
 
+    # Медиа / хранилище фото
+    media_dir: str = "media"
+    media_base_url: str = "/media"
+    photo_max_bytes: int = 10 * 1024 * 1024  # 10 МБ
+    max_photos_per_user: int = 6
+
+    # Модерация контента (NSFW): пороги score 0..1
+    nsfw_reject_threshold: float = 0.8   # выше — авто-отклонение
+    nsfw_review_threshold: float = 0.4   # выше — в ручную очередь
+
     # Версии юридических документов (152-ФЗ)
     consent_privacy_version: str = "1.0"
     consent_terms_version: str = "1.0"

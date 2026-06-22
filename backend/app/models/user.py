@@ -4,7 +4,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, String, Uuid
+from sqlalchemy import Boolean, DateTime, Enum, Integer, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin
@@ -52,6 +52,10 @@ class User(Base, TimestampMixin):
     )
     is_verified: Mapped[bool] = mapped_column(
         Boolean, default=False, nullable=False
+    )
+    # Внутренний показатель доверия 0..100 (НЕ публичная шкала). Чем ниже — рискованнее.
+    trust_score: Mapped[int] = mapped_column(
+        Integer, default=100, nullable=False
     )
 
     profile: Mapped["Profile"] = relationship(  # noqa: F821

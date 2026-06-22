@@ -1,5 +1,6 @@
 """ORM-модели."""
 
+from app.models.antifraud import RiskFlag
 from app.models.consent import Consent
 from app.models.matching import Like, Match
 from app.models.message import Message
@@ -30,4 +31,5 @@ __all__ = [
     "Match",
     "CategoryPreference",
     "Message",
+    "RiskFlag",
 ]

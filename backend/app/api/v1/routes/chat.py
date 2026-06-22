@@ -14,6 +14,7 @@ from app.models.message import MessageStatus
 from app.models.photo import ModerationStatus
 from app.schemas.chat import IcebreakersOut, MatchOut, MessageIn, MessageOut
 from app.services.analytics import track_event
+from app.services.antifraud import evaluate_and_apply
 from app.services.chat import generate_icebreakers, manager, screen_message
 from app.services.compatibility import compute_compatibility
 from app.services.discovery import load_answers
@@ -111,6 +112,9 @@ async def send_message(
     out = MessageOut.model_validate(message, from_attributes=True)
     await manager.broadcast(match_id, out.model_dump(mode="json"))
     track_event("message_sent", {"match_id": str(match_id), "sender": str(user.id)})
+
+    # Антифрод-оценка по поведению (обновляет trust-score, при риске — флаг).
+    await evaluate_and_apply(db, user)
     return out
 
 

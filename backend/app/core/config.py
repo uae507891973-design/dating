@@ -53,6 +53,14 @@ class Settings(BaseSettings):
     nsfw_reject_threshold: float = 0.8   # выше — авто-отклонение
     nsfw_review_threshold: float = 0.4   # выше — в ручную очередь
 
+    # Антифрод: пороги поведенческих сигналов
+    antifraud_window_sec: int = 3600
+    antifraud_msg_velocity: int = 20        # сообщений за окно
+    antifraud_like_velocity: int = 60       # лайков за окно
+    antifraud_duplicate_threshold: int = 5  # одинаковых сообщений
+    antifraud_reports_threshold: int = 3    # открытых жалоб на пользователя
+    antifraud_flag_threshold: int = 50      # risk-score для авто-флага
+
     # Версии юридических документов (152-ФЗ)
     consent_privacy_version: str = "1.0"
     consent_terms_version: str = "1.0"

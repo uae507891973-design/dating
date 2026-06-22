@@ -2,9 +2,10 @@
 
 from fastapi import APIRouter
 
-from app.api.v1.routes import auth, consents, health
+from app.api.v1.routes import auth, consents, health, onboarding
 
 api_router = APIRouter()
 api_router.include_router(health.router)
 api_router.include_router(auth.router, prefix="/v1")
 api_router.include_router(consents.router, prefix="/v1")
+api_router.include_router(onboarding.router, prefix="/v1")

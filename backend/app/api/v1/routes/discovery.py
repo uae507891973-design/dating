@@ -6,10 +6,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
-from app.models import Like, Match, User
+from app.models import CategoryPreference, Like, Match, User
 from app.models.matching import LikeType
-from app.schemas.discovery import CandidateOut, LikeIn, LikeResult
+from app.models.preference import FactorImportance
+from app.schemas.discovery import (
+    CandidateOut,
+    CategoryPreferenceIn,
+    CategoryPreferenceOut,
+    LikeIn,
+    LikeResult,
+)
 from app.services.analytics import track_event
+from app.services.compatibility import CATEGORY_LABELS
 from app.services.discovery import get_candidates, ordered_pair
 
 router = APIRouter(prefix="/discovery", tags=["discovery"])
@@ -33,9 +41,61 @@ async def discover(
             is_verified=c.is_verified,
             score=c.compatibility.score,
             common_questions=c.compatibility.common_questions,
+            reasons=c.reasons,
         )
         for c in candidates
     ]
+
+
+@router.get("/preferences", response_model=list[CategoryPreferenceOut])
+async def get_preferences(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[CategoryPreferenceOut]:
+    """Текущая важность категорий (scrutability)."""
+    rows = (
+        await db.execute(
+            select(CategoryPreference).where(CategoryPreference.user_id == user.id)
+        )
+    ).scalars().all()
+    return [
+        CategoryPreferenceOut(category=r.category, importance=r.importance.value)
+        for r in rows
+    ]
+
+
+@router.put("/preferences", response_model=list[CategoryPreferenceOut])
+async def set_preferences(
+    prefs: list[CategoryPreferenceIn],
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[CategoryPreferenceOut]:
+    """Задать важность факторов — влияет на ранжирование подбора."""
+    for p in prefs:
+        if p.category not in CATEGORY_LABELS:
+            raise HTTPException(
+                status_code=400, detail=f"unknown category: {p.category}"
+            )
+        try:
+            importance = FactorImportance(p.importance)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=400, detail="invalid importance"
+            ) from exc
+
+        existing = await db.get(CategoryPreference, (user.id, p.category))
+        if existing is None:
+            db.add(
+                CategoryPreference(
+                    user_id=user.id, category=p.category, importance=importance
+                )
+            )
+        else:
+            existing.importance = importance
+
+    await db.commit()
+    track_event("preferences_updated", {"user_id": str(user.id)})
+    return await get_preferences(user, db)
 
 
 async def _record(

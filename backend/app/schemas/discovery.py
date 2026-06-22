@@ -14,6 +14,17 @@ class CandidateOut(BaseModel):
     is_verified: bool
     score: int               # совместимость 0..100
     common_questions: int
+    reasons: list[str] = []  # «Почему вы подходите» (объяснимый мэтчинг)
+
+
+class CategoryPreferenceIn(BaseModel):
+    category: str
+    importance: str  # muted | normal | important
+
+
+class CategoryPreferenceOut(BaseModel):
+    category: str
+    importance: str
 
 
 class LikeIn(BaseModel):

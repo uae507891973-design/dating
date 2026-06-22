@@ -6,14 +6,24 @@ from dataclasses import dataclass
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Block, Like, Photo, Profile, PsychotestAnswer, User
+from app.models import (
+    Block,
+    CategoryPreference,
+    Like,
+    Photo,
+    Profile,
+    PsychotestAnswer,
+    User,
+)
 from app.models.photo import ModerationStatus
+from app.models.preference import FACTOR_MULTIPLIER
 from app.models.user import UserStatus
 from app.services.compatibility import (
     AnswerMap,
     CompatibilityResult,
     compute_compatibility,
 )
+from app.services.explain import generate_reasons
 
 
 @dataclass
@@ -22,6 +32,21 @@ class Candidate:
     primary_photo_url: str | None
     is_verified: bool
     compatibility: CompatibilityResult
+    reasons: list[str]
+
+
+async def load_category_weights(
+    db: AsyncSession, user_id: uuid.UUID
+) -> dict[str, float]:
+    """Множители важности категорий пользователя (scrutability)."""
+    prefs = (
+        await db.execute(
+            select(CategoryPreference).where(
+                CategoryPreference.user_id == user_id
+            )
+        )
+    ).scalars().all()
+    return {p.category: FACTOR_MULTIPLIER[p.importance] for p in prefs}
 
 
 async def load_answers(db: AsyncSession, user_id: uuid.UUID) -> AnswerMap:
@@ -86,6 +111,8 @@ async def get_candidates(
         return []
 
     my_answers = await load_answers(db, me.id)
+    weights = await load_category_weights(db, me.id)
+    my_intent = my_profile.intent if my_profile else None
 
     # Основные одобренные фото кандидатов одним запросом.
     cand_ids = [p.user_id for p in candidate_profiles]
@@ -109,13 +136,17 @@ async def get_candidates(
     results: list[Candidate] = []
     for profile in candidate_profiles:
         their_answers = await load_answers(db, profile.user_id)
-        compat = compute_compatibility(my_answers, their_answers)
+        compat = compute_compatibility(
+            my_answers, their_answers, category_weights=weights
+        )
+        reasons = generate_reasons(compat, my_intent, profile.intent)
         results.append(
             Candidate(
                 profile=profile,
                 primary_photo_url=photo_by_user.get(profile.user_id),
                 is_verified=verified_by_user.get(profile.user_id, False),
                 compatibility=compat,
+                reasons=reasons,
             )
         )
 

@@ -32,14 +32,23 @@ def _question_match(qid: str, a_value: int, b_value: int) -> float:
     return 1.0 if a_value == b_value else 0.0
 
 
-def compute_compatibility(a: AnswerMap, b: AnswerMap) -> CompatibilityResult:
-    """Симметричная совместимость двух наборов ответов."""
+def compute_compatibility(
+    a: AnswerMap,
+    b: AnswerMap,
+    category_weights: dict[str, float] | None = None,
+) -> CompatibilityResult:
+    """Совместимость двух наборов ответов.
+
+    `category_weights` (scrutability) — множители важности категорий с точки
+    зрения первого пользователя (a). При None используется симметричный расчёт.
+    """
     common = set(a) & set(b)
     if not common:
         return CompatibilityResult(
             score=0, category_contributions={}, common_questions=0
         )
 
+    weights = category_weights or {}
     weighted_sum = 0.0
     weight_total = 0.0
     cat_match: dict[str, float] = {}
@@ -48,15 +57,19 @@ def compute_compatibility(a: AnswerMap, b: AnswerMap) -> CompatibilityResult:
     for qid in common:
         a_val, a_imp = a[qid]
         b_val, b_imp = b[qid]
-        # Вес вопроса — максимум важности из двух пользователей.
+        q = QUESTIONS_BY_ID[qid]
+        cat = q.category.value
+        # Вес вопроса — максимум важности из двух пользователей,
+        # домноженный на множитель важности категории (scrutability).
         weight = float(max(IMPORTANCE_WEIGHT[a_imp], IMPORTANCE_WEIGHT[b_imp]))
+        weight *= weights.get(cat, 1.0)
+        if weight <= 0:
+            continue
         match = _question_match(qid, a_val, b_val)
 
         weighted_sum += match * weight
         weight_total += weight
 
-        q = QUESTIONS_BY_ID[qid]
-        cat = q.category.value
         cat_match[cat] = cat_match.get(cat, 0.0) + match * weight
         cat_weight[cat] = cat_weight.get(cat, 0.0) + weight
 

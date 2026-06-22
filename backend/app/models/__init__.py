@@ -3,6 +3,7 @@
 from app.models.consent import Consent
 from app.models.matching import Like, Match
 from app.models.photo import Photo
+from app.models.preference import CategoryPreference
 from app.models.profile import Profile
 from app.models.psychotest import Psychoprofile, PsychotestAnswer
 from app.models.safety import (
@@ -26,4 +27,5 @@ __all__ = [
     "AuditLog",
     "Like",
     "Match",
+    "CategoryPreference",
 ]

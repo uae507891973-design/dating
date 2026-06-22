@@ -109,4 +109,14 @@ tests/               # pytest
   ранжирование — `GET/PUT /v1/discovery/preferences`.
 - Модель `category_preferences` + миграция 0006; событие `preferences_updated`.
 
+## Что сделано на Стадии 2.3 (чат) — Стадия 2 завершена
+- Список мэтчей `GET /v1/matches`; история `GET /v1/matches/{id}/messages`.
+- Отправка `POST /v1/matches/{id}/messages` с модерацией (антиспам: ссылки/контакты
+  блокируются для неверифицированных), отметка прочтения `POST .../read`.
+- **Айсбрейкеры** `GET /v1/matches/{id}/icebreakers` на основе сильных совпадений.
+- **Real-time** через WebSocket `/v1/ws/chat/{match_id}` (авторизация по токену,
+  проверка членства, broadcast подключённым).
+- Доступ только участникам мэтча; модель `messages` + миграция 0007.
+- События `message_sent`.
+
 > PostGIS-геометрия запланирована: на фундаменте координаты хранятся как `latitude/longitude` (Float), миграция на `geography(Point)` — в рамках Стадии 2 (подбор по гео).

@@ -4,6 +4,7 @@ from fastapi import APIRouter
 
 from app.api.v1.routes import (
     auth,
+    chat,
     consents,
     discovery,
     health,
@@ -23,4 +24,5 @@ api_router.include_router(profile.router, prefix="/v1")
 api_router.include_router(verify.router, prefix="/v1")
 api_router.include_router(safety.router, prefix="/v1")
 api_router.include_router(discovery.router, prefix="/v1")
+api_router.include_router(chat.router, prefix="/v1")
 api_router.include_router(moderation.router, prefix="/v1")

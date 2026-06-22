@@ -2,6 +2,7 @@
 
 from app.models.consent import Consent
 from app.models.matching import Like, Match
+from app.models.message import Message
 from app.models.photo import Photo
 from app.models.preference import CategoryPreference
 from app.models.profile import Profile
@@ -28,4 +29,5 @@ __all__ = [
     "Like",
     "Match",
     "CategoryPreference",
+    "Message",
 ]

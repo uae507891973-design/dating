@@ -4,6 +4,12 @@ from app.models.consent import Consent
 from app.models.photo import Photo
 from app.models.profile import Profile
 from app.models.psychotest import Psychoprofile, PsychotestAnswer
+from app.models.safety import (
+    AuditLog,
+    Block,
+    Report,
+    Verification,
+)
 from app.models.user import User
 
 __all__ = [
@@ -13,4 +19,8 @@ __all__ = [
     "PsychotestAnswer",
     "Psychoprofile",
     "Photo",
+    "Verification",
+    "Report",
+    "Block",
+    "AuditLog",
 ]

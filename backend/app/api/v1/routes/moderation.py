@@ -4,15 +4,17 @@ import uuid
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_moderator
 from app.db.session import get_db
-from app.models import Photo, User
+from app.models import AuditLog, Photo, User
 from app.models.photo import ModerationStatus
 from app.schemas.profile import ModerationDecisionIn, ModerationPhotoOut
+from app.schemas.safety import AuditOut
 from app.services.analytics import track_event
+from app.services.audit import write_audit
 
 router = APIRouter(prefix="/moderation", tags=["moderation"])
 
@@ -52,6 +54,7 @@ async def moderate_photo(
     photo.moderation_status = data.decision
     photo.moderation_reason = data.reason
     photo.moderated_at = datetime.now(UTC)
+    write_audit(db, moderator.id, "photo_decision", str(photo.id))
     await db.commit()
     await db.refresh(photo)
 
@@ -64,3 +67,18 @@ async def moderate_photo(
         },
     )
     return ModerationPhotoOut.model_validate(photo, from_attributes=True)
+
+
+@router.get("/audit", response_model=list[AuditOut])
+async def audit_log(
+    limit: int = 50,
+    _: User = Depends(get_current_moderator),
+    db: AsyncSession = Depends(get_db),
+) -> list[AuditOut]:
+    """Последние записи аудита (доступ к ПДн и модерационные решения)."""
+    rows = (
+        await db.execute(
+            select(AuditLog).order_by(desc(AuditLog.created_at)).limit(limit)
+        )
+    ).scalars().all()
+    return [AuditOut.model_validate(r, from_attributes=True) for r in rows]

@@ -86,4 +86,12 @@ tests/               # pytest
 - **Модераторская очередь** (RBAC: moderator/admin): `GET /v1/moderation/photos`, `POST /v1/moderation/photos/{id}/decision`.
 - События аналитики: `profile_completed`, `photo_uploaded`, `photo_moderated`.
 
+## Что сделано на Стадии 1.4 (верификация, безопасность) — MVP-ядро закрыто
+- **Селфи-верификация** `POST /v1/verify/selfie` (liveness/сверка — заглушка) + бейдж `is_verified` в анкете; `GET /v1/verify/status`.
+- **Жалобы** `POST /v1/reports` и **блокировки** `POST/GET/DELETE /v1/blocks` (идемпотентно, нельзя на себя).
+- **Аудит-лог** доступа/действий (152-ФЗ): запись на верификацию, жалобу, блок, модерационное решение; чтение `GET /v1/moderation/audit` (RBAC).
+- События аналитики: `verification_completed`, `report_created`, `user_blocked`.
+
+> Реальные liveness/сверка лица, шифрование PII и полноценный SIEM для аудита — следующие итерации; интерфейсы заложены.
+
 > PostGIS-геометрия запланирована: на фундаменте координаты хранятся как `latitude/longitude` (Float), миграция на `geography(Point)` — в рамках Стадии 2 (подбор по гео).

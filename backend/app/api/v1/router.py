@@ -9,6 +9,8 @@ from app.api.v1.routes import (
     moderation,
     onboarding,
     profile,
+    safety,
+    verify,
 )
 
 api_router = APIRouter()
@@ -17,4 +19,6 @@ api_router.include_router(auth.router, prefix="/v1")
 api_router.include_router(consents.router, prefix="/v1")
 api_router.include_router(onboarding.router, prefix="/v1")
 api_router.include_router(profile.router, prefix="/v1")
+api_router.include_router(verify.router, prefix="/v1")
+api_router.include_router(safety.router, prefix="/v1")
 api_router.include_router(moderation.router, prefix="/v1")

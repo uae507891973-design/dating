@@ -50,7 +50,9 @@ async def get_profile(
     profile = await db.get(Profile, user.id)
     if profile is None:
         profile = Profile(user_id=user.id)
-    return ProfileOut.model_validate(profile, from_attributes=True)
+    out = ProfileOut.model_validate(profile, from_attributes=True)
+    out.is_verified = user.is_verified
+    return out
 
 
 @router.put("", response_model=ProfileOut)
@@ -72,7 +74,9 @@ async def update_profile(
     await db.commit()
     await db.refresh(profile)
     track_event("profile_completed", {"user_id": str(user.id)})
-    return ProfileOut.model_validate(profile, from_attributes=True)
+    out = ProfileOut.model_validate(profile, from_attributes=True)
+    out.is_verified = user.is_verified
+    return out
 
 
 @router.post("/photos", response_model=PhotoOut, status_code=201)

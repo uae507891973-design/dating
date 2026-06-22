@@ -27,6 +27,7 @@ class ProfileOut(BaseModel):
     intent: Intent | None
     city: str | None
     bio: str | None
+    is_verified: bool = False
 
 
 class PhotoOut(BaseModel):

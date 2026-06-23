@@ -16,10 +16,12 @@ from app.api.deps import get_current_user
 from app.core.config import get_settings
 from app.db.session import get_db
 from app.models import Match, User, VideoSession
+from app.models.notification import NotificationType
 from app.models.video import VideoStatus
 from app.schemas.video import BlurIn, ContinueIn, VideoSessionOut
 from app.services.analytics import track_event
 from app.services.audit import write_audit
+from app.services.notifications import notify
 
 router = APIRouter(tags=["video"])
 settings = get_settings()
@@ -56,7 +58,7 @@ async def initiate_video(
     db: AsyncSession = Depends(get_db),
 ) -> VideoSessionOut:
     """Инициировать блюр-видеозвонок по мэтчу."""
-    await _match_for_user(db, match_id, user)
+    _, other_id = await _match_for_user(db, match_id, user)
 
     active = (
         await db.execute(
@@ -77,6 +79,12 @@ async def initiate_video(
         blur_level=settings.video_default_blur,
     )
     db.add(session)
+    await notify(
+        db,
+        other_id,
+        NotificationType.video_call,
+        {"title": "Входящий видеозвонок", "match_id": str(match_id)},
+    )
     await db.commit()
     await db.refresh(session)
     track_event("video_call_started", {"match_id": str(match_id)})

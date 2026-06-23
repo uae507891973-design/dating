@@ -4,6 +4,7 @@ from app.models.antifraud import RiskFlag
 from app.models.consent import Consent
 from app.models.matching import Like, Match
 from app.models.message import Message
+from app.models.notification import DeviceToken, Notification
 from app.models.photo import Photo
 from app.models.preference import CategoryPreference
 from app.models.profile import Profile
@@ -34,4 +35,6 @@ __all__ = [
     "Message",
     "RiskFlag",
     "VideoSession",
+    "DeviceToken",
+    "Notification",
 ]

@@ -9,6 +9,7 @@ from app.api.v1.routes import (
     discovery,
     health,
     moderation,
+    notifications,
     onboarding,
     profile,
     safety,
@@ -27,4 +28,5 @@ api_router.include_router(safety.router, prefix="/v1")
 api_router.include_router(discovery.router, prefix="/v1")
 api_router.include_router(chat.router, prefix="/v1")
 api_router.include_router(video.router, prefix="/v1")
+api_router.include_router(notifications.router, prefix="/v1")
 api_router.include_router(moderation.router, prefix="/v1")

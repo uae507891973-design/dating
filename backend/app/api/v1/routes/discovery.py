@@ -8,6 +8,7 @@ from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models import CategoryPreference, Like, Match, User
 from app.models.matching import LikeType
+from app.models.notification import NotificationType
 from app.models.preference import FactorImportance
 from app.schemas.discovery import (
     CandidateOut,
@@ -19,6 +20,7 @@ from app.schemas.discovery import (
 from app.services.analytics import track_event
 from app.services.compatibility import CATEGORY_LABELS
 from app.services.discovery import get_candidates, ordered_pair
+from app.services.notifications import notify
 
 router = APIRouter(prefix="/discovery", tags=["discovery"])
 
@@ -139,6 +141,9 @@ async def like(
             await db.flush()
             match_id = match.id
             track_event("match_created", {"user_a": str(a), "user_b": str(b)})
+            payload = {"title": "Новый мэтч!", "match_id": str(match_id)}
+            await notify(db, a, NotificationType.match, payload)
+            await notify(db, b, NotificationType.match, payload)
         else:
             match_id = existing.id
 

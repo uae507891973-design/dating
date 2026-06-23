@@ -11,6 +11,7 @@ from app.core.security import TokenError, decode_token
 from app.db.session import SessionLocal, get_db
 from app.models import Match, Message, Photo, Profile, User
 from app.models.message import MessageStatus
+from app.models.notification import NotificationType
 from app.models.photo import ModerationStatus
 from app.schemas.chat import IcebreakersOut, MatchOut, MessageIn, MessageOut
 from app.services.analytics import track_event
@@ -18,6 +19,7 @@ from app.services.antifraud import evaluate_and_apply
 from app.services.chat import generate_icebreakers, manager, screen_message
 from app.services.compatibility import compute_compatibility
 from app.services.discovery import load_answers
+from app.services.notifications import notify
 
 router = APIRouter(tags=["chat"])
 
@@ -98,7 +100,7 @@ async def send_message(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> MessageOut:
-    await _match_for_user(db, match_id, user)
+    _, other_id = await _match_for_user(db, match_id, user)
 
     ok, reason = screen_message(data.body, user.is_verified)
     if not ok:
@@ -106,6 +108,12 @@ async def send_message(
 
     message = Message(match_id=match_id, sender_id=user.id, body=data.body.strip())
     db.add(message)
+    await notify(
+        db,
+        other_id,
+        NotificationType.message,
+        {"title": "Новое сообщение", "match_id": str(match_id)},
+    )
     await db.commit()
     await db.refresh(message)
 

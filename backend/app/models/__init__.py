@@ -15,6 +15,7 @@ from app.models.safety import (
     Verification,
 )
 from app.models.user import User
+from app.models.video import VideoSession
 
 __all__ = [
     "User",
@@ -32,4 +33,5 @@ __all__ = [
     "CategoryPreference",
     "Message",
     "RiskFlag",
+    "VideoSession",
 ]

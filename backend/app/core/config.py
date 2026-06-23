@@ -61,6 +61,11 @@ class Settings(BaseSettings):
     antifraud_reports_threshold: int = 3    # открытых жалоб на пользователя
     antifraud_flag_threshold: int = 50      # risk-score для авто-флага
 
+    # Видеознакомство «вслепую»
+    video_duration_sec: int = 180           # длительность звонка (3 минуты)
+    video_default_blur: float = 1.0         # стартовый уровень блюра (1.0 — макс.)
+    video_trust_bonus: int = 5              # бонус к trust-score за живой контакт
+
     # Версии юридических документов (152-ФЗ)
     consent_privacy_version: str = "1.0"
     consent_terms_version: str = "1.0"

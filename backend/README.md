@@ -129,4 +129,16 @@ tests/               # pytest
   `POST /v1/moderation/antifraud/scan/{user_id}`.
 - Модель `risk_flags` + `users.trust_score` + миграция 0008; событие `antifraud_flag`.
 
+## Что сделано на Стадии 3.2 (видеознакомство «вслепую» — дифференциатор)
+- Сессия видеозвонка по мэтчу: инициация/принятие/отклонение, состояния
+  `requested → active → ended/declined` (`POST /v1/matches/{id}/video`, `/video/{sid}/accept|decline`).
+- **Управление блюром** (`/video/{sid}/blur`) и **раскрытие по обоюдному «да»**
+  (`/video/{sid}/continue` — при двух согласиях блюр снимается).
+- Завершение (`/video/{sid}/end`): живой видеоконтакт повышает **trust-score** обоих.
+- Доступ только участникам мэтча; модель `video_sessions` + миграция 0009.
+- События `video_call_started/completed`, `video_continue_yes`.
+
+> Сам медиапоток (WebRTC/RTC-провайдер РФ) подключается через сигналинг отдельно;
+> здесь реализованы жизненный цикл, согласия, безопасность и связка с trust-score.
+
 > PostGIS-геометрия запланирована: на фундаменте координаты хранятся как `latitude/longitude` (Float), миграция на `geography(Point)` — в рамках Стадии 2 (подбор по гео).

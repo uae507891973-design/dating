@@ -196,6 +196,41 @@ h2.title { margin: 4px 0 14px; font-size: 20px; }
 .btn.danger { background: linear-gradient(120deg, #ff5e5e, #ff8a8a); }
 .reveal-note { font-size: 12px; text-align: center; opacity: .85; }
 
+/* Preloader */
+.preloader {
+  position: absolute; inset: 0; z-index: 50;
+  background: linear-gradient(150deg, var(--primary), var(--primary-2) 60%, var(--accent));
+  color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; transition: opacity .5s ease, visibility .5s;
+}
+.preloader.hidden { opacity: 0; visibility: hidden; }
+.pl-logo { font-size: 56px; animation: beat 1s ease-in-out infinite; }
+.pl-name { font-size: 24px; font-weight: 700; }
+.pl-sub { font-size: 13px; opacity: .85; }
+.pl-bar { width: 140px; height: 5px; border-radius: 5px; background: rgba(255,255,255,.25); overflow: hidden; margin-top: 18px; }
+.pl-bar > i { display: block; height: 100%; width: 40%; background: #fff; border-radius: 5px; animation: load 1.4s ease-in-out infinite; }
+@keyframes beat { 0%,100% { transform: scale(1); } 30% { transform: scale(1.18); } 45% { transform: scale(1); } 60% { transform: scale(1.1); } }
+@keyframes load { 0% { margin-left: -40%; } 100% { margin-left: 100%; } }
+
+/* Welcome */
+.welcome { display: flex; flex-direction: column; min-height: 100%; }
+.welcome .hero {
+  border-radius: 22px; padding: 26px 20px; color: #fff; margin-bottom: 16px;
+  background: linear-gradient(150deg, var(--primary), var(--primary-2) 55%, var(--accent));
+  box-shadow: var(--shadow);
+}
+.welcome .hero .wlogo { font-size: 40px; }
+.welcome .hero h1 { font-size: 23px; margin: 10px 0 6px; line-height: 1.2; }
+.welcome .hero p { font-size: 14px; opacity: .92; margin: 0; }
+.usp { list-style: none; padding: 0; margin: 0 0 8px; }
+.usp li { display: flex; gap: 12px; align-items: flex-start; background: var(--card); border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; box-shadow: var(--shadow); }
+.usp .ico { font-size: 22px; flex: none; }
+.usp b { display: block; font-size: 14px; }
+.usp small { color: var(--muted); font-size: 12px; }
+.welcome .cta { margin-top: 6px; }
+.welcome .cta .btn { font-size: 16px; padding: 15px; }
+.welcome .cta .sub { text-align: center; color: var(--muted); font-size: 12px; margin-top: 10px; }
+
 /* Registration */
 .reg-head { text-align: center; margin: 8px 0 18px; }
 .reg-head .logo-big { font-size: 36px; }

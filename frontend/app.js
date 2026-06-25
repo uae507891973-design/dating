@@ -52,7 +52,7 @@ const LEGAL_DOCS = [
 // --- Состояние ---
 const state = {
   registered: false,
-  reg: { step: "phone", phone: "", code: "", consents: {} },
+  reg: { step: "welcome", phone: "", code: "", consents: {} },
   tab: "discovery", qIndex: 0, answers: {}, importance: {}, cardIndex: 0, chat: null, video: null,
 };
 
@@ -84,37 +84,69 @@ function render() {
   (r[state.tab] || renderDiscovery)();
 }
 
+// --- Приветствие (УТП + призыв к действию) ---
+const USP = [
+  ["🎯", "Совместимость, а не свайпы", "Подбор по ценностям и целям — с объяснением «почему вы подходите»"],
+  ["🛡️", "Только реальные люди", "Верификация по селфи и антифрод — без ботов и анкет-пустышек"],
+  ["🎥", "Видеознакомство «вслепую»", "Безопасный первый контакт до обмена контактами"],
+  ["💍", "Для серьёзных отношений", "Аудитория, нацеленная на семью и долгие отношения"],
+];
+
+function renderWelcome() {
+  screen().innerHTML = `
+    <div class="welcome">
+      <div class="hero">
+        <div class="wlogo">❤</div>
+        <h1>Найдите того, кто действительно подходит</h1>
+        <p>Серьёзные знакомства, основанные на доверии и совместимости.</p>
+      </div>
+      <ul class="usp">
+        ${USP.map(([i, t, s]) => `<li><span class="ico">${i}</span><span><b>${t}</b><small>${s}</small></span></li>`).join("")}
+      </ul>
+      <div class="cta">
+        <button class="btn" onclick="goRegister()">Начать знакомиться →</button>
+        <div class="sub">Бесплатно · 18+ · конфиденциально</div>
+      </div>
+    </div>`;
+}
+window.goRegister = () => { state.reg.step = "phone"; renderRegister(); };
+
 // --- Регистрация + согласия (152-ФЗ) ---
 function renderRegister() {
   const reg = state.reg;
-  const phoneStep = `
-    <div class="field">
-      <label>Номер телефона</label>
-      <input id="reg-phone" inputmode="tel" placeholder="+7 999 123-45-67"
-        value="${reg.phone}" oninput="state.reg.phone=this.value" />
-    </div>
-    <button class="btn" onclick="reqCode()">Получить код</button>`;
+  if (reg.step === "welcome") { renderWelcome(); return; }
 
   const requiredChecked = LEGAL_DOCS.filter((d) => d.required).every((d) => reg.consents[d.type]);
-  const codeOk = (reg.code || "").length >= 4;
-  const canSubmit = requiredChecked && codeOk;
+  const phoneValid = /^\+?[1-9]\d{9,14}$/.test((reg.phone || "").replace(/[\s()-]/g, ""));
 
+  const phoneStep = `
+    <p class="muted" style="font-size:13px;margin:0 0 12px">
+      Сначала примите обязательные документы, затем укажите номер — мы отправим код.</p>
+    ${LEGAL_DOCS.map((d) => consentRow(d)).join("")}
+    <div class="field" style="margin-top:14px">
+      <label>Номер телефона</label>
+      <input id="reg-phone" inputmode="tel" placeholder="+7 999 123-45-67"
+        value="${reg.phone}" oninput="state.reg.phone=this.value;renderRegister()" />
+    </div>
+    <button class="btn" ${requiredChecked && phoneValid ? "" : "disabled"} onclick="reqCode()">
+      Получить код</button>
+    <div class="reg-legal">Нажимая «Получить код», вы подтверждаете, что вам исполнилось 18 лет.</div>`;
+
+  const codeOk = (reg.code || "").length >= 4;
   const codeStep = `
     <div class="field">
       <label>Код из SMS</label>
       <input id="reg-code" inputmode="numeric" maxlength="4" placeholder="••••"
         value="${reg.code}" oninput="state.reg.code=this.value;renderRegister()" />
-      <div class="otp-note">Код отправлен на <b>${reg.phone || "ваш номер"}</b> · демо: введите любые 4 цифры</div>
+      <div class="otp-note">Код отправлен на <b>${reg.phone}</b> · демо: введите любые 4 цифры</div>
     </div>
-    ${LEGAL_DOCS.map((d) => consentRow(d)).join("")}
-    <button class="btn" ${canSubmit ? "" : "disabled"} onclick="finishReg()">Зарегистрироваться</button>
-    <div class="reg-legal">Регистрируясь, вы подтверждаете, что вам исполнилось 18 лет.</div>`;
+    <button class="btn" ${codeOk ? "" : "disabled"} onclick="finishReg()">Зарегистрироваться</button>`;
 
   screen().innerHTML = `
     <div class="reg-head">
       <div class="logo-big">❤</div>
       <h2>${reg.step === "phone" ? "Регистрация" : "Подтверждение"}</h2>
-      <p>${reg.step === "phone" ? "Вход по номеру телефона" : "Введите код и примите условия"}</p>
+      <p>${reg.step === "phone" ? "Согласия и номер телефона" : "Введите код из SMS"}</p>
     </div>
     ${reg.step === "phone" ? phoneStep : codeStep}`;
 }
@@ -131,6 +163,10 @@ function consentRow(d) {
     </div>`;
 }
 window.reqCode = () => {
+  const required = LEGAL_DOCS.filter((d) => d.required);
+  if (!required.every((d) => state.reg.consents[d.type])) {
+    toast("Примите обязательные документы"); return;
+  }
   const p = (state.reg.phone || "").replace(/[\s()-]/g, "");
   if (!/^\+?[1-9]\d{9,14}$/.test(p)) { toast("Введите корректный номер"); return; }
   state.reg.step = "code"; renderRegister();
@@ -376,4 +412,9 @@ el("legend").innerHTML = [
   ["Стадия 3", "антифрод, видео «вслепую», уведомления"],
 ].map(([a, b]) => `<li><b>${a}:</b> ${b}</li>`).join("");
 
+// Прелоудер: показываем сплеш, затем приветственный экран.
 render();
+setTimeout(() => {
+  const pl = document.getElementById("preloader");
+  if (pl) pl.classList.add("hidden");
+}, 1700);

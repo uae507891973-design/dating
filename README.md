@@ -35,6 +35,7 @@
 - Стадия 3.3 реализована: уведомления (push-заглушка + in-app), чек-лист 152-ФЗ. **Стадия 3 завершена.**
 - [Customer Journey Map](docs/product/cjm.md)
 - [Безопасность и 152-ФЗ (чек-лист)](docs/security/security-152fz.md)
+- [Аудит продукта: функциональность и юзабилити](docs/product/product-audit.md)
 - [План реализации продукта (+ оригинальные идеи)](docs/product/implementation-plan.md)
 
 ## Кратко

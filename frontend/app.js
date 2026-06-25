@@ -54,7 +54,7 @@ const state = {
   registered: false,
   reg: { step: "welcome", phone: "", code: "", consents: {} },
   tab: "discovery", qIndex: 0, answers: {}, importance: {}, cardIndex: 0, chat: null, video: null,
-  favorites: [],
+  favorites: [], verified: false,
 };
 
 const el = (id) => document.getElementById(id);
@@ -72,13 +72,21 @@ function setTab(tab) {
 
 function render() {
   const tabbar = el("tabbar");
+  const topbar = document.querySelector(".topbar");
   if (!state.registered) {
     if (tabbar) tabbar.style.display = "none";
+    if (topbar) topbar.style.display = "none"; // верификация/шапка — только после регистрации
     screen().innerHTML = "";
     renderRegister();
     return;
   }
   if (tabbar) tabbar.style.display = "flex";
+  if (topbar) topbar.style.display = "flex";
+  const badge = el("trust-badge");
+  if (badge) {
+    badge.textContent = state.verified ? "✓ Verified" : "○ Не верифицирован";
+    badge.style.opacity = state.verified ? "1" : ".7";
+  }
   const r = { onboarding: renderOnboarding, discovery: renderDiscovery,
     matches: state.chat ? renderChat : renderMatches, profile: renderProfile,
     favorites: renderFavorites };
@@ -406,17 +414,25 @@ window.endVideo = () => {
 // --- Профиль ---
 function renderProfile() {
   const answered = Object.keys(state.answers).length;
+  const v = state.verified;
   screen().innerHTML = `
     <div class="profile-head">
       <div class="big-ava" style="background:${grad("#b34cf1", "#ff5e8a")}"></div>
       <h2 style="margin:0">Вы</h2>
-      <span class="pill ok">✓ Verified</span>
+      <span class="pill ${v ? "ok" : "info"}">${v ? "✓ Verified" : "○ Не верифицирован"}</span>
     </div>
+    ${v ? "" : `
+    <div class="card" style="text-align:center">
+      <div class="heartbeat" style="font-size:36px">🪪</div>
+      <p style="margin:8px 0 4px;font-weight:600">Пройдите верификацию</p>
+      <p class="muted" style="font-size:13px;margin:0 0 12px">Селфи-проверка повышает доверие и приоритет в подборе.</p>
+      <button class="btn" onclick="verifyMe()">Сделать селфи и верифицироваться</button>
+    </div>`}
     <div class="card">
       <div class="stat"><span>Намерение</span><b>Создание семьи</b></div>
       <div class="stat"><span>Тест совместимости</span><b>${answered}/${QUESTIONS.length} ответов</b></div>
-      <div class="stat"><span>Верификация (селфи)</span><span class="pill ok">пройдена</span></div>
-      <div class="stat"><span>Доверие (внутренне)</span><span class="pill info">100/100</span></div>
+      <div class="stat"><span>Верификация (селфи)</span><span class="pill ${v ? "ok" : "info"}">${v ? "пройдена" : "не пройдена"}</span></div>
+      <div class="stat"><span>Доверие (внутренне)</span><span class="pill info">${v ? 100 : 90}/100</span></div>
       <div class="stat"><span>Город</span><b>Москва</b></div>
     </div>
     <div class="card">
@@ -426,6 +442,12 @@ function renderProfile() {
       <div class="stat"><span>Антифрод</span><b>активен</b></div>
     </div>`;
 }
+
+window.verifyMe = () => {
+  state.verified = true;
+  toast("Верификация пройдена ✓ +доверие");
+  render();
+};
 
 // --- Тост ---
 function toast(text) {

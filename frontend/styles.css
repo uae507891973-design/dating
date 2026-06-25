@@ -63,6 +63,15 @@ body {
 
 .screen { flex: 1; overflow-y: auto; padding: 16px; }
 .screen::-webkit-scrollbar { width: 0; }
+/* Плавное появление контента при смене экрана */
+.screen > * { animation: fadeUp .38s cubic-bezier(.21,.7,.35,1) both; }
+.screen > *:nth-child(2) { animation-delay: .05s; }
+.screen > *:nth-child(3) { animation-delay: .1s; }
+.screen > *:nth-child(4) { animation-delay: .15s; }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes pop { 0% { opacity: 0; transform: scale(.9); } 60% { transform: scale(1.02); } 100% { opacity: 1; transform: scale(1); } }
+@keyframes floaty { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@keyframes tabPop { 0% { transform: scale(.7); } 60% { transform: scale(1.25); } 100% { transform: scale(1); } }
 
 .tabbar {
   display: flex; background: var(--card);
@@ -74,7 +83,11 @@ body {
   display: flex; flex-direction: column; align-items: center; gap: 2px;
 }
 .tab span { font-size: 11px; }
+.tab span { transition: color .2s; }
+.tab:active { transform: scale(.9); }
+.tab { transition: transform .15s, color .2s; }
 .tab.active { color: var(--primary); }
+.tab.active { animation: tabPop .35s ease; }
 
 /* Generic */
 h2.title { margin: 4px 0 14px; font-size: 20px; }
@@ -114,6 +127,7 @@ h2.title { margin: 4px 0 14px; font-size: 20px; }
 .swipe { position: relative; }
 .profile-card {
   background: var(--card); border-radius: 22px; overflow: hidden; box-shadow: var(--shadow);
+  animation: pop .4s cubic-bezier(.21,.7,.35,1) both;
 }
 .photo {
   height: 300px; position: relative;
@@ -143,9 +157,19 @@ h2.title { margin: 4px 0 14px; font-size: 20px; }
 .fab {
   width: 60px; height: 60px; border-radius: 50%; border: none; cursor: pointer;
   font-size: 24px; box-shadow: var(--shadow); background: #fff;
+  transition: transform .15s ease, box-shadow .2s;
 }
-.fab.like { background: linear-gradient(120deg, var(--accent), #ff8aa6); color: #fff; }
+.fab:hover { transform: translateY(-3px) scale(1.06); }
+.fab:active { transform: scale(.88); }
+.fab.like { background: linear-gradient(120deg, var(--accent), #ff8aa6); color: #fff; animation: floaty 2.4s ease-in-out infinite; }
 .fab.video { background: linear-gradient(120deg, #2bb673, #4fd99a); color:#fff; font-size: 22px; }
+.btn { transition: transform .12s ease, filter .2s; }
+.btn:not([disabled]):active { transform: scale(.97); }
+.btn:not([disabled]):hover { filter: brightness(1.05); }
+.consent, .scale button, .ice, .match-item, .usp li { transition: transform .12s ease, border-color .15s, background .15s; }
+.scale button:active, .ice:active { transform: scale(.97); }
+.usp li:hover { transform: translateX(3px); }
+.heartbeat { animation: floaty 2.2s ease-in-out infinite; }
 
 /* Scrutability */
 .pref { display: flex; align-items: center; justify-content: space-between; margin: 10px 0; }
@@ -172,6 +196,15 @@ h2.title { margin: 4px 0 14px; font-size: 20px; }
 .composer { display: flex; gap: 8px; padding-top: 10px; }
 .composer input { flex: 1; border: 1.5px solid var(--line); border-radius: 22px; padding: 11px 14px; font-size: 14px; outline: none; }
 .composer button { border: none; background: var(--primary); color: #fff; width: 44px; border-radius: 50%; font-size: 18px; cursor: pointer; }
+
+/* Favorites */
+.fav-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.fav-card { background: var(--card); border-radius: 16px; overflow: hidden; box-shadow: var(--shadow); cursor: pointer; padding-bottom: 10px; transition: transform .15s; animation: pop .4s both; }
+.fav-card:hover { transform: translateY(-4px); }
+.fav-photo { height: 130px; position: relative; background-size: cover; background-position: center; }
+.fav-score { position: absolute; bottom: 8px; left: 8px; background: rgba(0,0,0,.5); color: #fff; font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 12px; }
+.fav-v { position: absolute; top: 8px; right: 8px; background: var(--ok); color: #fff; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; }
+.fav-name { font-weight: 600; font-size: 14px; margin: 8px 10px 2px; }
 
 /* Profile */
 .profile-head { text-align: center; padding: 10px 0 6px; }

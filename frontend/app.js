@@ -54,6 +54,7 @@ const state = {
   registered: false,
   reg: { step: "welcome", phone: "", code: "", consents: {} },
   tab: "discovery", qIndex: 0, answers: {}, importance: {}, cardIndex: 0, chat: null, video: null,
+  favorites: [],
 };
 
 const el = (id) => document.getElementById(id);
@@ -79,7 +80,8 @@ function render() {
   }
   if (tabbar) tabbar.style.display = "flex";
   const r = { onboarding: renderOnboarding, discovery: renderDiscovery,
-    matches: state.chat ? renderChat : renderMatches, profile: renderProfile };
+    matches: state.chat ? renderChat : renderMatches, profile: renderProfile,
+    favorites: renderFavorites };
   screen().innerHTML = "";
   (r[state.tab] || renderDiscovery)();
 }
@@ -245,7 +247,7 @@ function renderDiscovery() {
 
 function renderPrefs() {
   const opts = [["muted", "Не важно"], ["normal", "Обычно"], ["important", "Важно"]];
-  return `<div class="card">
+  return `<div class="card" style="margin-top:24px">
     <h4 style="margin:0 0 6px;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Что важнее в подборе</h4>
     <p class="muted" style="font-size:12px;margin:0 0 8px">Влияет на ранжирование (scrutability)</p>
     ${Object.keys(CAT_LABEL).map((cat) => `
@@ -261,11 +263,42 @@ window.setPref = (cat, v) => { PREFS[cat] = v; render(); };
 window.nextCard = () => { state.cardIndex++; render(); };
 window.likeCard = (id) => {
   const c = CANDIDATES.find((x) => x.user_id === id);
+  if (!state.favorites.find((f) => f.user_id === id)) state.favorites.push(c);
   if (!MATCHES.find((m) => m.other.user_id === id)) {
     MATCHES.unshift({ match_id: "m" + id, other: c, last: "Вы мэтчнулись!", unread: 0, messages: [] });
   }
   toast(`Это мэтч с ${c.display_name}! 💜`);
   state.cardIndex++; render();
+};
+
+// --- Избранное ---
+function renderFavorites() {
+  if (!state.favorites.length) {
+    screen().innerHTML = `
+      <h2 class="title">Избранное</h2>
+      <div class="card" style="text-align:center;padding:30px 16px">
+        <div class="heartbeat" style="font-size:44px">⭐</div>
+        <p class="muted">Здесь будут анкеты, которым вы поставили ❤.<br>Лайкайте в подборе.</p>
+        <button class="btn secondary" onclick="setTab('discovery')">К подбору</button>
+      </div>`;
+    return;
+  }
+  screen().innerHTML = `<h2 class="title">Избранное</h2>
+    <div class="fav-grid">
+      ${state.favorites.map((c) => `
+        <div class="fav-card" onclick="openChatByUser('${c.user_id}')">
+          <div class="fav-photo" style="background:${c.primary_photo}">
+            <span class="fav-score">${c.score}%</span>
+            ${c.is_verified ? '<span class="fav-v">✓</span>' : ""}
+          </div>
+          <div class="fav-name">${c.display_name}, ${c.age}</div>
+          <div class="muted" style="font-size:12px">📍 ${c.city}</div>
+        </div>`).join("")}
+    </div>`;
+}
+window.openChatByUser = (uid) => {
+  const m = MATCHES.find((x) => x.other.user_id === uid);
+  if (m) { openChat(m.match_id); } else { setTab("matches"); }
 };
 
 // --- Мэтчи и чат ---

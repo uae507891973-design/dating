@@ -69,6 +69,7 @@ class Settings(BaseSettings):
     # Версии юридических документов (152-ФЗ)
     consent_privacy_version: str = "1.0"
     consent_terms_version: str = "1.0"
+    consent_marketing_version: str = "1.0"
 
     @property
     def is_prod(self) -> bool:

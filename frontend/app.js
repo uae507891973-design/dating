@@ -39,8 +39,22 @@ let MATCHES = [
 ];
 const PREFS = { values: "normal", goals: "important", lifestyle: "normal", family: "normal", communication: "normal" };
 
+// --- Юридические документы (как в /v1/legal/documents) ---
+const LEGAL_DOCS = [
+  { type: "privacy", version: "1.0", required: true,
+    title: "Согласие на обработку персональных данных", url: "/legal/privacy" },
+  { type: "terms", version: "1.0", required: true,
+    title: "Пользовательское соглашение и оферта", url: "/legal/terms" },
+  { type: "marketing", version: "1.0", required: false,
+    title: "Согласие на информационные рассылки", url: "/legal/marketing" },
+];
+
 // --- Состояние ---
-const state = { tab: "discovery", qIndex: 0, answers: {}, importance: {}, cardIndex: 0, chat: null, video: null };
+const state = {
+  registered: false,
+  reg: { step: "phone", phone: "", code: "", consents: {} },
+  tab: "discovery", qIndex: 0, answers: {}, importance: {}, cardIndex: 0, chat: null, video: null,
+};
 
 const el = (id) => document.getElementById(id);
 const screen = () => el("screen");
@@ -56,11 +70,80 @@ function setTab(tab) {
 }
 
 function render() {
+  const tabbar = el("tabbar");
+  if (!state.registered) {
+    if (tabbar) tabbar.style.display = "none";
+    screen().innerHTML = "";
+    renderRegister();
+    return;
+  }
+  if (tabbar) tabbar.style.display = "flex";
   const r = { onboarding: renderOnboarding, discovery: renderDiscovery,
     matches: state.chat ? renderChat : renderMatches, profile: renderProfile };
   screen().innerHTML = "";
   (r[state.tab] || renderDiscovery)();
 }
+
+// --- Регистрация + согласия (152-ФЗ) ---
+function renderRegister() {
+  const reg = state.reg;
+  const phoneStep = `
+    <div class="field">
+      <label>Номер телефона</label>
+      <input id="reg-phone" inputmode="tel" placeholder="+7 999 123-45-67"
+        value="${reg.phone}" oninput="state.reg.phone=this.value" />
+    </div>
+    <button class="btn" onclick="reqCode()">Получить код</button>`;
+
+  const requiredChecked = LEGAL_DOCS.filter((d) => d.required).every((d) => reg.consents[d.type]);
+  const codeOk = (reg.code || "").length >= 4;
+  const canSubmit = requiredChecked && codeOk;
+
+  const codeStep = `
+    <div class="field">
+      <label>Код из SMS</label>
+      <input id="reg-code" inputmode="numeric" maxlength="4" placeholder="••••"
+        value="${reg.code}" oninput="state.reg.code=this.value;renderRegister()" />
+      <div class="otp-note">Код отправлен на <b>${reg.phone || "ваш номер"}</b> · демо: введите любые 4 цифры</div>
+    </div>
+    ${LEGAL_DOCS.map((d) => consentRow(d)).join("")}
+    <button class="btn" ${canSubmit ? "" : "disabled"} onclick="finishReg()">Зарегистрироваться</button>
+    <div class="reg-legal">Регистрируясь, вы подтверждаете, что вам исполнилось 18 лет.</div>`;
+
+  screen().innerHTML = `
+    <div class="reg-head">
+      <div class="logo-big">❤</div>
+      <h2>${reg.step === "phone" ? "Регистрация" : "Подтверждение"}</h2>
+      <p>${reg.step === "phone" ? "Вход по номеру телефона" : "Введите код и примите условия"}</p>
+    </div>
+    ${reg.step === "phone" ? phoneStep : codeStep}`;
+}
+
+function consentRow(d) {
+  const on = !!state.reg.consents[d.type];
+  return `
+    <div class="consent ${on ? "checked" : ""}" onclick="toggleConsent('${d.type}')">
+      <div class="box">${on ? "✓" : ""}</div>
+      <div class="ctext">
+        Я принимаю <a href="${d.url}" onclick="event.stopPropagation()">«${d.title}»</a>
+        ${d.required ? '<span class="req"> · обязательно</span>' : '<span class="opt"> · по желанию</span>'}
+      </div>
+    </div>`;
+}
+window.reqCode = () => {
+  const p = (state.reg.phone || "").replace(/[\s()-]/g, "");
+  if (!/^\+?[1-9]\d{9,14}$/.test(p)) { toast("Введите корректный номер"); return; }
+  state.reg.step = "code"; renderRegister();
+};
+window.toggleConsent = (t) => { state.reg.consents[t] = !state.reg.consents[t]; renderRegister(); };
+window.finishReg = () => {
+  const accepted = LEGAL_DOCS.filter((d) => d.required).every((d) => state.reg.consents[d.type]);
+  if (!accepted) { toast("Примите обязательные согласия"); return; }
+  state.registered = true;
+  state.tab = "onboarding";
+  toast("Добро пожаловать! Согласия сохранены ✓");
+  render();
+};
 
 // --- Онбординг ---
 function renderOnboarding() {

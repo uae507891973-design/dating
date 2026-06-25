@@ -8,6 +8,7 @@ from app.api.v1.routes import (
     consents,
     discovery,
     health,
+    legal,
     moderation,
     notifications,
     onboarding,
@@ -19,6 +20,7 @@ from app.api.v1.routes import (
 
 api_router = APIRouter()
 api_router.include_router(health.router)
+api_router.include_router(legal.router, prefix="/v1")
 api_router.include_router(auth.router, prefix="/v1")
 api_router.include_router(consents.router, prefix="/v1")
 api_router.include_router(onboarding.router, prefix="/v1")

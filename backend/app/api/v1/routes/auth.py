@@ -14,7 +14,7 @@ from app.core.security import (
     decode_token,
 )
 from app.db.session import get_db
-from app.models import User
+from app.models import Consent, User
 from app.models.user import UserStatus
 from app.schemas.auth import (
     RefreshIn,
@@ -24,6 +24,7 @@ from app.schemas.auth import (
     VerifyOtpIn,
 )
 from app.services.analytics import track_event
+from app.services.legal import required_types, version_for
 from app.services.otp import OTPStore, generate_code, get_otp_store, send_sms
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -76,10 +77,28 @@ async def verify_otp(
     result = await db.execute(select(User).where(User.phone == data.phone))
     user = result.scalar_one_or_none()
     is_new_user = user is None
-    if user is None:
+
+    if is_new_user:
+        # Регистрация: обязательны согласия на обработку ПДн и оферту (152-ФЗ).
+        accepted = set(data.accepted_documents)
+        missing = required_types() - accepted
+        if missing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"error": "consent_required", "missing": sorted(missing)},
+            )
         user = User(phone=data.phone, status=UserStatus.pending)
         db.add(user)
         await db.flush()
+        # Фиксируем каждое принятое согласие с актуальной версией и временем.
+        for doc_type in accepted:
+            version = version_for(doc_type)
+            if version is not None:
+                db.add(
+                    Consent(
+                        user_id=user.id, doc_type=doc_type, doc_version=version
+                    )
+                )
         track_event("registration_completed", {"user_id": str(user.id)})
 
     user.last_active_at = datetime.now(UTC)

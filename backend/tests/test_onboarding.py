@@ -11,7 +11,8 @@ async def _auth_headers(client: AsyncClient, otp_store: MemoryOTPStore) -> dict:
     await client.post("/v1/auth/request-otp", json={"phone": PHONE})
     code = await otp_store.get_code(PHONE)
     resp = await client.post(
-        "/v1/auth/verify-otp", json={"phone": PHONE, "code": code}
+        "/v1/auth/verify-otp",
+        json={"phone": PHONE, "code": code, "accepted_documents": ["privacy", "terms"]},
     )
     token = resp.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}

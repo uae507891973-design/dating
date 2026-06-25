@@ -27,6 +27,8 @@ class RequestOtpOut(BaseModel):
 class VerifyOtpIn(BaseModel):
     phone: str
     code: str
+    # Типы принятых документов (галочки согласий): privacy, terms, marketing.
+    accepted_documents: list[str] = []
 
 
 class TokenPair(BaseModel):

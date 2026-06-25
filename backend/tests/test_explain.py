@@ -34,7 +34,10 @@ def test_reasons_empty_when_no_strong_factors() -> None:
 async def _auth(client: AsyncClient, otp_store: MemoryOTPStore, phone: str) -> dict:
     await client.post("/v1/auth/request-otp", json={"phone": phone})
     code = await otp_store.get_code(phone)
-    resp = await client.post("/v1/auth/verify-otp", json={"phone": phone, "code": code})
+    resp = await client.post(
+        "/v1/auth/verify-otp",
+        json={"phone": phone, "code": code, "accepted_documents": ["privacy", "terms"]},
+    )
     return {"Authorization": f"Bearer {resp.json()['access_token']}"}
 
 

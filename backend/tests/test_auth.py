@@ -13,7 +13,8 @@ async def _get_tokens(client: AsyncClient, otp_store: MemoryOTPStore) -> dict:
     code = await otp_store.get_code(PHONE)
     assert code is not None
     resp = await client.post(
-        "/v1/auth/verify-otp", json={"phone": PHONE, "code": code}
+        "/v1/auth/verify-otp",
+        json={"phone": PHONE, "code": code, "accepted_documents": ["privacy", "terms"]},
     )
     assert resp.status_code == 200
     return resp.json()
@@ -31,6 +32,49 @@ async def test_register_new_user_via_otp(
     assert tokens["is_new_user"] is True
     assert tokens["access_token"]
     assert tokens["refresh_token"]
+
+    # Согласия зафиксированы при регистрации.
+    headers = {"Authorization": f"Bearer {tokens['access_token']}"}
+    consents = (await client.get("/v1/consents", headers=headers)).json()
+    types = {c["doc_type"] for c in consents}
+    assert {"privacy", "terms"} <= types
+
+
+async def test_legal_documents_listed(client: AsyncClient) -> None:
+    resp = await client.get("/v1/legal/documents")
+    assert resp.status_code == 200
+    docs = {d["type"]: d for d in resp.json()}
+    assert docs["privacy"]["required"] is True
+    assert docs["terms"]["required"] is True
+    assert docs["marketing"]["required"] is False
+
+
+async def test_registration_requires_consents(
+    client: AsyncClient, otp_store: MemoryOTPStore
+) -> None:
+    await client.post("/v1/auth/request-otp", json={"phone": PHONE})
+    code = await otp_store.get_code(PHONE)
+    # Без обязательных согласий — регистрация отклоняется.
+    resp = await client.post(
+        "/v1/auth/verify-otp", json={"phone": PHONE, "code": code}
+    )
+    assert resp.status_code == 400
+    detail = resp.json()["detail"]
+    assert detail["error"] == "consent_required"
+    assert "privacy" in detail["missing"] and "terms" in detail["missing"]
+
+
+async def test_registration_partial_consent_rejected(
+    client: AsyncClient, otp_store: MemoryOTPStore
+) -> None:
+    await client.post("/v1/auth/request-otp", json={"phone": PHONE})
+    code = await otp_store.get_code(PHONE)
+    resp = await client.post(
+        "/v1/auth/verify-otp",
+        json={"phone": PHONE, "code": code, "accepted_documents": ["privacy"]},
+    )
+    assert resp.status_code == 400
+    assert resp.json()["detail"]["missing"] == ["terms"]
 
 
 async def test_verify_wrong_code(
@@ -96,4 +140,5 @@ async def test_accept_and_list_consent(
 
     resp = await client.get("/v1/consents", headers=headers)
     assert resp.status_code == 200
-    assert len(resp.json()) == 1
+    # privacy + terms из регистрации + добавленный вручную privacy.
+    assert len(resp.json()) == 3

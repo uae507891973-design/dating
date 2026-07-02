@@ -40,6 +40,8 @@ class Settings(BaseSettings):
     otp_max_attempts: int = 5          # попыток ввода на один код
     otp_request_window_sec: int = 3600  # окно лимита запросов
     otp_request_max: int = 5            # макс. запросов кода на телефон в окне
+    otp_ip_window_sec: int = 3600       # окно лимита по IP
+    otp_ip_max: int = 30               # макс. запросов кода с одного IP в окне
 
     # Безопасность / возрастной ценз
     min_user_age: int = 18

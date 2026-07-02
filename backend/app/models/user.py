@@ -57,6 +57,10 @@ class User(Base, TimestampMixin):
     trust_score: Mapped[int] = mapped_column(
         Integer, default=100, nullable=False
     )
+    # Версия токенов: инкремент при logout/сбросе инвалидирует все выданные токены.
+    token_version: Mapped[int] = mapped_column(
+        Integer, default=0, nullable=False
+    )
 
     profile: Mapped["Profile"] = relationship(  # noqa: F821
         back_populates="user", uselist=False, cascade="all, delete-orphan"

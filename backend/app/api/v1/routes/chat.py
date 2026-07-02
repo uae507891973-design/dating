@@ -172,19 +172,22 @@ async def icebreakers(
 async def chat_ws(websocket: WebSocket, match_id: uuid.UUID, token: str = "") -> None:
     """Real-time канал чата. Авторизация через query-параметр token."""
     try:
-        subject = decode_token(token, expected_type="access")
-        user_id = uuid.UUID(subject)
-    except (TokenError, ValueError):
+        payload = decode_token(token, expected_type="access")
+        user_id = uuid.UUID(payload["sub"])
+    except (TokenError, ValueError, KeyError):
         await websocket.close(code=4401)
         return
 
-    # Проверка членства в мэтче.
+    # Проверка членства в мэтче и актуальности токена.
     async with SessionLocal() as db:
         match = await db.get(Match, match_id)
         if match is None or user_id not in (match.user_a, match.user_b):
             await websocket.close(code=4403)
             return
         user = await db.get(User, user_id)
+        if user is None or payload.get("ver", 0) != user.token_version:
+            await websocket.close(code=4401)
+            return
 
     await manager.connect(match_id, websocket)
     try:

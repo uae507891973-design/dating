@@ -100,6 +100,44 @@ async def _reg(client, otp_store, phone, gender, looking_for):
     return headers
 
 
+async def _tokens(client, otp_store, phone):
+    await client.post("/v1/auth/request-otp", json={"phone": phone})
+    code = await otp_store.get_code(phone)
+    r = await client.post(
+        "/v1/auth/verify-otp",
+        json={"phone": phone, "code": code,
+              "accepted_documents": ["privacy", "terms"]},
+    )
+    return r.json()
+
+
+async def test_logout_revokes_access_token(
+    client: AsyncClient, otp_store: MemoryOTPStore
+) -> None:
+    t = await _tokens(client, otp_store, "+79997770020")
+    headers = {"Authorization": f"Bearer {t['access_token']}"}
+
+    # Токен работает.
+    assert (await client.get("/v1/consents", headers=headers)).status_code == 200
+    # Logout.
+    assert (await client.post("/v1/auth/logout", headers=headers)).status_code == 204
+    # Тот же токен больше не принимается.
+    assert (await client.get("/v1/consents", headers=headers)).status_code == 401
+
+
+async def test_refresh_revoked_after_logout(
+    client: AsyncClient, otp_store: MemoryOTPStore
+) -> None:
+    t = await _tokens(client, otp_store, "+79997770021")
+    headers = {"Authorization": f"Bearer {t['access_token']}"}
+    await client.post("/v1/auth/logout", headers=headers)
+
+    resp = await client.post(
+        "/v1/auth/refresh", json={"refresh_token": t["refresh_token"]}
+    )
+    assert resp.status_code == 401
+
+
 async def test_block_prevents_contact(
     client: AsyncClient, otp_store: MemoryOTPStore, session
 ) -> None:

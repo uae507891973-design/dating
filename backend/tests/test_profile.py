@@ -7,6 +7,10 @@ from app.models import User
 from app.models.user import UserRole
 from app.services.otp import MemoryOTPStore
 
+# Валидные минимальные изображения (по сигнатуре).
+JPEG = b"\xff\xd8\xff\xe0" + b"\x00" * 32
+PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
+
 
 async def _auth(client: AsyncClient, otp_store: MemoryOTPStore, phone: str) -> dict:
     await client.post("/v1/auth/request-otp", json={"phone": phone})
@@ -51,7 +55,7 @@ async def test_photo_auto_approved(
     client: AsyncClient, otp_store: MemoryOTPStore
 ) -> None:
     headers = await _auth(client, otp_store, "+79990000012")
-    files = {"file": ("ok.jpg", b"clean image bytes", "image/jpeg")}
+    files = {"file": ("ok.jpg", JPEG, "image/jpeg")}
     resp = await client.post("/v1/profile/photos", files=files, headers=headers)
     assert resp.status_code == 201
     body = resp.json()
@@ -63,10 +67,19 @@ async def test_photo_auto_rejected(
     client: AsyncClient, otp_store: MemoryOTPStore
 ) -> None:
     headers = await _auth(client, otp_store, "+79990000013")
-    files = {"file": ("nsfw.jpg", b"nsfw content", "image/jpeg")}
+    files = {"file": ("nsfw.jpg", JPEG, "image/jpeg")}
     resp = await client.post("/v1/profile/photos", files=files, headers=headers)
     assert resp.status_code == 201
     assert resp.json()["moderation_status"] == "rejected"
+
+
+async def test_non_image_rejected(
+    client: AsyncClient, otp_store: MemoryOTPStore
+) -> None:
+    headers = await _auth(client, otp_store, "+79990000019")
+    files = {"file": ("evil.jpg", b"<html>not an image</html>", "image/jpeg")}
+    resp = await client.post("/v1/profile/photos", files=files, headers=headers)
+    assert resp.status_code == 400
 
 
 async def test_photo_sent_to_review_and_moderated(
@@ -74,7 +87,7 @@ async def test_photo_sent_to_review_and_moderated(
 ) -> None:
     phone = "+79990000014"
     headers = await _auth(client, otp_store, phone)
-    files = {"file": ("review.jpg", b"review please", "image/jpeg")}
+    files = {"file": ("review.jpg", PNG, "image/jpeg")}
     resp = await client.post("/v1/profile/photos", files=files, headers=headers)
     assert resp.json()["moderation_status"] == "pending"
     photo_id = resp.json()["id"]

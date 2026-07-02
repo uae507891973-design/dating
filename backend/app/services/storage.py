@@ -14,11 +14,30 @@ settings = get_settings()
 ALLOWED_EXT = {".jpg", ".jpeg", ".png", ".webp"}
 
 
+class UnsupportedImageError(ValueError):
+    """Содержимое файла не является поддерживаемым изображением."""
+
+
+def detect_image_ext(content: bytes) -> str | None:
+    """Определить формат по сигнатуре (magic bytes). None — если не изображение."""
+    if content[:3] == b"\xff\xd8\xff":
+        return ".jpg"
+    if content[:8] == b"\x89PNG\r\n\x1a\n":
+        return ".png"
+    if content[:4] == b"RIFF" and content[8:12] == b"WEBP":
+        return ".webp"
+    return None
+
+
 def save_photo(user_id: uuid.UUID, filename: str, content: bytes) -> str:
-    """Сохранить файл и вернуть его URL."""
-    ext = Path(filename).suffix.lower() or ".jpg"
-    if ext not in ALLOWED_EXT:
-        ext = ".jpg"
+    """Сохранить файл и вернуть его URL.
+
+    Формат определяется по сигнатуре содержимого (не по расширению имени),
+    чтобы нельзя было залить не-изображение с картиночным расширением.
+    """
+    ext = detect_image_ext(content)
+    if ext is None:
+        raise UnsupportedImageError("file is not a supported image")
     name = f"{uuid.uuid4().hex}{ext}"
 
     user_dir = Path(settings.media_dir) / str(user_id)

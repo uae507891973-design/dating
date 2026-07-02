@@ -1,11 +1,13 @@
 """Аутентификация по SMS-OTP с выдачей JWT."""
 
+import uuid
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_current_user
 from app.core.config import get_settings
 from app.core.security import (
     TokenError,
@@ -34,9 +36,19 @@ settings = get_settings()
 @router.post("/request-otp", response_model=RequestOtpOut)
 async def request_otp(
     data: RequestOtpIn,
+    request: Request,
     store: OTPStore = Depends(get_otp_store),
 ) -> RequestOtpOut:
-    """Сгенерировать и отправить SMS-код (с лимитом запросов)."""
+    """Сгенерировать и отправить SMS-код (лимиты по телефону и IP)."""
+    # Лимит по IP — защита от SMS-pumping/toll fraud.
+    ip = request.client.host if request.client else "unknown"
+    ip_requests = await store.incr_ip_requests(ip, settings.otp_ip_window_sec)
+    if ip_requests > settings.otp_ip_max:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="too many otp requests from this network",
+        )
+
     requests = await store.incr_requests(data.phone, settings.otp_request_window_sec)
     if requests > settings.otp_request_max:
         raise HTTPException(
@@ -112,22 +124,42 @@ async def verify_otp(
         "login", {"user_id": str(user.id), "is_new_user": is_new_user}
     )
     return TokenPair(
-        access_token=create_access_token(str(user.id)),
-        refresh_token=create_refresh_token(str(user.id)),
+        access_token=create_access_token(str(user.id), user.token_version),
+        refresh_token=create_refresh_token(str(user.id), user.token_version),
         is_new_user=is_new_user,
     )
 
 
 @router.post("/refresh", response_model=TokenPair)
-async def refresh(data: RefreshIn) -> TokenPair:
-    """Обновить пару токенов по refresh-токену."""
+async def refresh(
+    data: RefreshIn, db: AsyncSession = Depends(get_db)
+) -> TokenPair:
+    """Обновить пару токенов по refresh-токену (с проверкой версии)."""
     try:
-        subject = decode_token(data.refresh_token, expected_type="refresh")
-    except TokenError as exc:
+        payload = decode_token(data.refresh_token, expected_type="refresh")
+        user_id = uuid.UUID(payload["sub"])
+    except (TokenError, ValueError, KeyError) as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid refresh token"
         ) from exc
+
+    user = await db.get(User, user_id)
+    if user is None or payload.get("ver", 0) != user.token_version:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="refresh token revoked"
+        )
     return TokenPair(
-        access_token=create_access_token(subject),
-        refresh_token=create_refresh_token(subject),
+        access_token=create_access_token(str(user.id), user.token_version),
+        refresh_token=create_refresh_token(str(user.id), user.token_version),
     )
+
+
+@router.post("/logout", status_code=204)
+async def logout(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Выход: инвалидирует все ранее выданные токены пользователя."""
+    user.token_version += 1
+    await db.commit()
+    track_event("logout", {"user_id": str(user.id)})

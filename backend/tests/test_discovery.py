@@ -1,7 +1,9 @@
 """Тесты движка подбора: фильтры, ранжирование, лайки и мэтчи."""
 
 from httpx import AsyncClient
+from sqlalchemy import select
 
+from app.models import Profile, User
 from app.services.otp import MemoryOTPStore
 
 
@@ -141,3 +143,52 @@ async def test_cannot_like_self(
         "/v1/discovery/like", json={"target_user_id": str(my_id)}, headers=me
     )
     assert resp.status_code == 400
+
+
+async def test_discovery_requires_complete_profile(
+    client: AsyncClient, otp_store: MemoryOTPStore
+) -> None:
+    headers = await _auth(client, otp_store, "+79991110040")
+    resp = await client.get("/v1/discovery", headers=headers)
+    assert resp.status_code == 409
+    assert resp.json()["detail"]["error"] == "profile_incomplete"
+
+
+async def test_candidate_without_test_is_hidden(
+    client: AsyncClient, otp_store: MemoryOTPStore
+) -> None:
+    me = await _setup_user(client, otp_store, "+79991110050", "male", "female", 5)
+    # Кандидат заполнил анкету, но НЕ прошёл тест.
+    other = await _auth(client, otp_store, "+79991110051")
+    await client.put(
+        "/v1/profile",
+        json={"display_name": "1051", "birth_date": "1992-01-01",
+              "gender": "female", "looking_for": "male", "intent": "marriage"},
+        headers=other,
+    )
+    feed = await client.get("/v1/discovery", headers=me)
+    assert feed.status_code == 200
+    assert all(c["display_name"] != "1051" for c in feed.json())
+
+
+async def test_geo_radius_filter(
+    client: AsyncClient, otp_store: MemoryOTPStore, session
+) -> None:
+    me = await _setup_user(client, otp_store, "+79991110060", "male", "female", 5)
+    await _setup_user(client, otp_store, "+79991110061", "female", "male", 5)  # near
+    await _setup_user(client, otp_store, "+79991110062", "female", "male", 5)  # far
+
+    async def set_geo(phone, lat, lon):
+        u = (await session.execute(
+            select(User).where(User.phone == phone))).scalar_one()
+        p = await session.get(Profile, u.id)
+        p.latitude, p.longitude = lat, lon
+    await set_geo("+79991110060", 55.75, 37.62)   # Москва
+    await set_geo("+79991110061", 55.80, 37.60)   # рядом (~6 км)
+    await set_geo("+79991110062", 59.93, 30.34)   # Питер (~630 км)
+    await session.commit()
+
+    feed = await client.get("/v1/discovery?max_distance_km=50", headers=me)
+    names = [c["display_name"] for c in feed.json()]
+    assert "0061" in names   # рядом — в выдаче
+    assert "0062" not in names  # далеко — отфильтрован

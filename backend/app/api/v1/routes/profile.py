@@ -21,7 +21,7 @@ from app.models import Photo, Profile, User
 from app.schemas.profile import PhotoOut, ProfileIn, ProfileOut
 from app.services.analytics import track_event
 from app.services.moderation import classify_nsfw, decide
-from app.services.storage import save_photo
+from app.services.storage import UnsupportedImageError, detect_image_ext, save_photo
 
 router = APIRouter(prefix="/profile", tags=["profile"])
 settings = get_settings()
@@ -100,12 +100,20 @@ async def upload_photo(
         raise HTTPException(status_code=400, detail="empty file")
     if len(content) > settings.photo_max_bytes:
         raise HTTPException(status_code=400, detail="file too large")
+    # Проверка сигнатуры: принимаем только реальные изображения.
+    if detect_image_ext(content) is None:
+        raise HTTPException(status_code=400, detail="unsupported image format")
 
     # Авто-модерация (NSFW) до публикации.
     score = classify_nsfw(content, file.filename or "")
     moderation_status, reason = decide(score)
 
-    url = save_photo(user.id, file.filename or "photo.jpg", content)
+    try:
+        url = save_photo(user.id, file.filename or "photo.jpg", content)
+    except UnsupportedImageError as exc:
+        raise HTTPException(
+            status_code=400, detail="unsupported image format"
+        ) from exc
     photo = Photo(
         user_id=user.id,
         url=url,

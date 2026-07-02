@@ -2,6 +2,7 @@
 
 import uuid
 from dataclasses import dataclass
+from math import asin, cos, radians, sin, sqrt
 
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +13,7 @@ from app.models import (
     Like,
     Photo,
     Profile,
+    Psychoprofile,
     PsychotestAnswer,
     User,
 )
@@ -24,6 +26,18 @@ from app.services.compatibility import (
     compute_compatibility,
 )
 from app.services.explain import generate_reasons
+
+
+def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Расстояние между точками на сфере в км."""
+    r = 6371.0
+    dlat = radians(lat2 - lat1)
+    dlon = radians(lon2 - lon1)
+    a = (
+        sin(dlat / 2) ** 2
+        + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon / 2) ** 2
+    )
+    return 2 * r * asin(sqrt(a))
 
 
 @dataclass
@@ -83,7 +97,10 @@ async def _excluded_ids(db: AsyncSession, me: uuid.UUID) -> set[uuid.UUID]:
 
 
 async def get_candidates(
-    db: AsyncSession, me: User, limit: int = 20
+    db: AsyncSession,
+    me: User,
+    limit: int = 20,
+    max_distance_km: float | None = None,
 ) -> list[Candidate]:
     """Сформировать ранжированную по совместимости подборку."""
     my_profile = await db.get(Profile, me.id)
@@ -106,7 +123,43 @@ async def get_candidates(
             )
         )
 
-    candidate_profiles = (await db.execute(stmt)).scalars().all()
+    candidate_profiles = list((await db.execute(stmt)).scalars().all())
+
+    # Гео-фильтр по радиусу (если задан и у обоих есть координаты).
+    if (
+        max_distance_km is not None
+        and my_profile is not None
+        and my_profile.latitude is not None
+        and my_profile.longitude is not None
+    ):
+        candidate_profiles = [
+            p
+            for p in candidate_profiles
+            if p.latitude is not None
+            and p.longitude is not None
+            and haversine_km(
+                my_profile.latitude, my_profile.longitude, p.latitude, p.longitude
+            )
+            <= max_distance_km
+        ]
+
+    if not candidate_profiles:
+        return []
+
+    # Показываем только тех, кто прошёл тест совместимости (есть психопрофиль).
+    cand_ids_all = [p.user_id for p in candidate_profiles]
+    with_profile = set(
+        (
+            await db.execute(
+                select(Psychoprofile.user_id).where(
+                    Psychoprofile.user_id.in_(cand_ids_all)
+                )
+            )
+        ).scalars().all()
+    )
+    candidate_profiles = [
+        p for p in candidate_profiles if p.user_id in with_profile
+    ]
     if not candidate_profiles:
         return []
 

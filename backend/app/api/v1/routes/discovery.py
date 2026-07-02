@@ -1,12 +1,19 @@
 """Подбор: лента кандидатов, лайки/пропуски, образование мэтча."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
-from app.models import CategoryPreference, Like, Match, User
+from app.models import (
+    CategoryPreference,
+    Like,
+    Match,
+    Profile,
+    Psychoprofile,
+    User,
+)
 from app.models.matching import LikeType
 from app.models.notification import NotificationType
 from app.models.preference import FactorImportance
@@ -29,11 +36,31 @@ router = APIRouter(prefix="/discovery", tags=["discovery"])
 @router.get("", response_model=list[CandidateOut])
 async def discover(
     limit: int = 20,
+    max_distance_km: float | None = None,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[CandidateOut]:
     """Ранжированная по совместимости подборка кандидатов."""
-    candidates = await get_candidates(db, user, limit=min(limit, 50))
+    # Гейт: анкета заполнена (пол/кого ищу) и тест пройден (есть психопрофиль).
+    profile = await db.get(Profile, user.id)
+    psychoprofile = await db.get(Psychoprofile, user.id)
+    if (
+        profile is None
+        or profile.gender is None
+        or profile.looking_for is None
+        or psychoprofile is None
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "error": "profile_incomplete",
+                "need": "Заполните анкету (пол, кого ищете) и пройдите тест",
+            },
+        )
+
+    candidates = await get_candidates(
+        db, user, limit=min(limit, 50), max_distance_km=max_distance_km
+    )
     return [
         CandidateOut(
             user_id=c.profile.user_id,

@@ -46,6 +46,9 @@ class OTPStore(ABC):
     @abstractmethod
     async def incr_requests(self, phone: str, ttl: int) -> int: ...
 
+    @abstractmethod
+    async def incr_ip_requests(self, ip: str, ttl: int) -> int: ...
+
 
 class MemoryOTPStore(OTPStore):
     """In-memory реализация (не для продакшна)."""
@@ -89,6 +92,9 @@ class MemoryOTPStore(OTPStore):
     async def incr_requests(self, phone: str, ttl: int) -> int:
         return await self._incr(f"requests:{phone}", ttl)
 
+    async def incr_ip_requests(self, ip: str, ttl: int) -> int:
+        return await self._incr(f"requests_ip:{ip}", ttl)
+
 
 class RedisOTPStore(OTPStore):
     """Redis-реализация для продакшна."""
@@ -119,6 +125,9 @@ class RedisOTPStore(OTPStore):
 
     async def incr_requests(self, phone: str, ttl: int) -> int:
         return await self._incr(f"otp:requests:{phone}", ttl)
+
+    async def incr_ip_requests(self, ip: str, ttl: int) -> int:
+        return await self._incr(f"otp:requests:ip:{ip}", ttl)
 
 
 def mask_phone(phone: str) -> str:

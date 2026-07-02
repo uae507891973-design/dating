@@ -1,8 +1,10 @@
 """Точка входа FastAPI-приложения."""
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from app import __version__
 from app.api.v1.router import api_router
@@ -51,6 +53,15 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
     app.include_router(api_router)
+
+    # Раздача загруженных фото (dev). В prod — объектное хранилище/CDN РФ.
+    media_path = Path(settings.media_dir)
+    media_path.mkdir(parents=True, exist_ok=True)
+    app.mount(
+        settings.media_base_url,
+        StaticFiles(directory=str(media_path)),
+        name="media",
+    )
 
     @app.get("/", include_in_schema=False)
     async def root() -> dict[str, str]:

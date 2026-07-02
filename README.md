@@ -37,6 +37,7 @@
 - [Безопасность и 152-ФЗ (чек-лист)](docs/security/security-152fz.md)
 - [Аудит продукта: функциональность и юзабилити](docs/product/product-audit.md)
 - [Security-ревью и «дыры» в разработке](docs/security/security-review.md)
+- [Поэтапный план работ по итогам аудита](docs/product/remediation-plan.md)
 - [План реализации продукта (+ оригинальные идеи)](docs/product/implementation-plan.md)
 
 ## Кратко

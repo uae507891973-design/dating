@@ -34,7 +34,8 @@ class Settings(BaseSettings):
 
     # OTP (SMS-код подтверждения)
     otp_backend: str = "redis"  # redis | memory (memory — для тестов/локально)
-    otp_length: int = 4
+    otp_debug_log: bool = False  # логировать код в dev (НИКОГДА не включать в prod)
+    otp_length: int = 6
     otp_ttl_sec: int = 300            # срок жизни кода
     otp_max_attempts: int = 5          # попыток ввода на один код
     otp_request_window_sec: int = 3600  # окно лимита запросов

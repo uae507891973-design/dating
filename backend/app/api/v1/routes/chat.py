@@ -16,6 +16,7 @@ from app.models.photo import ModerationStatus
 from app.schemas.chat import IcebreakersOut, MatchOut, MessageIn, MessageOut
 from app.services.analytics import track_event
 from app.services.antifraud import evaluate_and_apply
+from app.services.blocks import is_blocked_between
 from app.services.chat import generate_icebreakers, manager, screen_message
 from app.services.compatibility import compute_compatibility
 from app.services.discovery import load_answers
@@ -101,6 +102,8 @@ async def send_message(
     db: AsyncSession = Depends(get_db),
 ) -> MessageOut:
     _, other_id = await _match_for_user(db, match_id, user)
+    if await is_blocked_between(db, user.id, other_id):
+        raise HTTPException(status_code=403, detail="interaction not allowed")
 
     ok, reason = screen_message(data.body, user.is_verified)
     if not ok:

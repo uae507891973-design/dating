@@ -14,7 +14,8 @@ settings = get_settings()
 
 engine = create_async_engine(
     settings.database_url,
-    echo=settings.debug,
+    # SQL-эхо только вне prod — чтобы ПДн не попадали в логи.
+    echo=settings.debug and not settings.is_prod,
     pool_pre_ping=True,
 )
 

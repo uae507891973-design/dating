@@ -41,6 +41,9 @@ class OTPStore(ABC):
     async def incr_attempts(self, phone: str, ttl: int) -> int: ...
 
     @abstractmethod
+    async def clear_attempts(self, phone: str) -> None: ...
+
+    @abstractmethod
     async def incr_requests(self, phone: str, ttl: int) -> int: ...
 
 
@@ -80,6 +83,9 @@ class MemoryOTPStore(OTPStore):
     async def incr_attempts(self, phone: str, ttl: int) -> int:
         return await self._incr(f"attempts:{phone}", ttl)
 
+    async def clear_attempts(self, phone: str) -> None:
+        self._counters.pop(f"attempts:{phone}", None)
+
     async def incr_requests(self, phone: str, ttl: int) -> int:
         return await self._incr(f"requests:{phone}", ttl)
 
@@ -108,13 +114,32 @@ class RedisOTPStore(OTPStore):
     async def incr_attempts(self, phone: str, ttl: int) -> int:
         return await self._incr(f"otp:attempts:{phone}", ttl)
 
+    async def clear_attempts(self, phone: str) -> None:
+        await self._redis.delete(f"otp:attempts:{phone}")
+
     async def incr_requests(self, phone: str, ttl: int) -> int:
         return await self._incr(f"otp:requests:{phone}", ttl)
 
 
+def mask_phone(phone: str) -> str:
+    """Замаскировать телефон для логов: +7999•••4567."""
+    if len(phone) <= 4:
+        return "•" * len(phone)
+    return phone[:2] + "•" * (len(phone) - 6) + phone[-4:]
+
+
 def send_sms(phone: str, code: str) -> None:
-    """Заглушка отправки SMS (на фундаменте — лог; в проде — провайдер РФ)."""
-    logger.info("sms_otp_sent", extra={"phone": phone, "code": code})
+    """Отправка SMS (заглушка; в проде — провайдер РФ).
+
+    Код НИКОГДА не логируется в проде. В dev можно включить `otp_debug_log`
+    для локальной отладки — тогда код виден только в незащищённом окружении.
+    """
+    if settings.otp_debug_log and not settings.is_prod:
+        logger.info(
+            "sms_otp_debug", extra={"phone": mask_phone(phone), "code": code}
+        )
+    else:
+        logger.info("sms_otp_sent", extra={"phone": mask_phone(phone)})
 
 
 # Singleton-хранилище по выбранному бэкенду.

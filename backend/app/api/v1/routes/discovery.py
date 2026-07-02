@@ -18,6 +18,7 @@ from app.schemas.discovery import (
     LikeResult,
 )
 from app.services.analytics import track_event
+from app.services.blocks import is_blocked_between
 from app.services.compatibility import CATEGORY_LABELS
 from app.services.discovery import get_candidates, ordered_pair
 from app.services.notifications import notify
@@ -119,6 +120,8 @@ async def like(
     """Лайк кандидата; при взаимности создаётся мэтч."""
     if data.target_user_id == user.id:
         raise HTTPException(status_code=400, detail="cannot like yourself")
+    if await is_blocked_between(db, user.id, data.target_user_id):
+        raise HTTPException(status_code=403, detail="interaction not allowed")
 
     await _record(db, user, data.target_user_id, LikeType.like)
     track_event("like", {"from": str(user.id), "to": str(data.target_user_id)})

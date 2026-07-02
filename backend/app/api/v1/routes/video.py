@@ -21,6 +21,7 @@ from app.models.video import VideoStatus
 from app.schemas.video import BlurIn, ContinueIn, VideoSessionOut
 from app.services.analytics import track_event
 from app.services.audit import write_audit
+from app.services.blocks import is_blocked_between
 from app.services.notifications import notify
 
 router = APIRouter(tags=["video"])
@@ -59,6 +60,8 @@ async def initiate_video(
 ) -> VideoSessionOut:
     """Инициировать блюр-видеозвонок по мэтчу."""
     _, other_id = await _match_for_user(db, match_id, user)
+    if await is_blocked_between(db, user.id, other_id):
+        raise HTTPException(status_code=403, detail="interaction not allowed")
 
     active = (
         await db.execute(

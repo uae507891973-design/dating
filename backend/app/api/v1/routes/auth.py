@@ -46,6 +46,8 @@ async def request_otp(
 
     code = generate_code(settings.otp_length)
     await store.set_code(data.phone, code, settings.otp_ttl_sec)
+    # Новый код — свежий счётчик попыток (чужие попытки не блокируют легитимного).
+    await store.clear_attempts(data.phone)
     send_sms(data.phone, code)
     track_event("otp_requested", {"phone": data.phone})
     return RequestOtpOut(sent=True, retry_after_sec=settings.otp_ttl_sec)
@@ -60,7 +62,7 @@ async def verify_otp(
     """Проверить код, создать/найти пользователя и выдать токены."""
     attempts = await store.incr_attempts(data.phone, settings.otp_ttl_sec)
     if attempts > settings.otp_max_attempts:
-        await store.delete_code(data.phone)
+        # Не удаляем код: легитимный пользователь запросит новый код (сброс попыток).
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="too many attempts",
@@ -72,7 +74,9 @@ async def verify_otp(
             status_code=status.HTTP_400_BAD_REQUEST, detail="invalid or expired code"
         )
 
+    # Успешная проверка — удаляем код и сбрасываем счётчик попыток.
     await store.delete_code(data.phone)
+    await store.clear_attempts(data.phone)
 
     result = await db.execute(select(User).where(User.phone == data.phone))
     user = result.scalar_one_or_none()

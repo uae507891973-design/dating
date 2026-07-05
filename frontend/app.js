@@ -203,7 +203,15 @@ function renderOnboarding() {
         ваши ценности, цели и взгляды на семью.</p>
         <p class="muted">Намерение: <b>создание семьи</b></p>
         <button class="btn" onclick="setTab('discovery')">Перейти к подбору →</button>
-      </div>`;
+      </div>
+      ${state.verified ? "" : `
+      <div class="card" style="text-align:center">
+        <div class="heartbeat" style="font-size:32px">🪪</div>
+        <p style="margin:6px 0 4px;font-weight:600">Повысьте доверие</p>
+        <p class="muted" style="font-size:13px;margin:0 0 10px">
+          Верифицированные анкеты получают больше внимания и приоритет в подборе.</p>
+        <button class="btn secondary" onclick="verifyMe()">Пройти верификацию</button>
+      </div>`}`;
     return;
   }
   const q = QUESTIONS[state.qIndex];
@@ -211,6 +219,9 @@ function renderOnboarding() {
   const imp = state.importance[q.id] || "medium";
   screen().innerHTML = `
     <h2 class="title">Тест совместимости</h2>
+    <p class="muted" style="font-size:12px;margin:-8px 0 10px">Займёт ~1 минуту —
+      и подбор станет точным. <a href="#" style="color:var(--primary)"
+      onclick="event.preventDefault();setTab('discovery')">Заполнить позже</a></p>
     <div class="progress"><i style="width:${(done / total) * 100}%"></i></div>
     <div class="muted" style="font-size:13px">${CAT_LABEL[q.category]} · вопрос ${state.qIndex + 1}/${total}</div>
     <div class="q-text">${q.text}</div>
@@ -227,7 +238,47 @@ window.setImp = (id, lv) => { state.importance[id] = lv; render(); };
 
 // --- Подбор (объяснимый мэтчинг) ---
 function renderDiscovery() {
-  const c = CANDIDATES[state.cardIndex % CANDIDATES.length];
+  // Гейт (как 409 profile_incomplete на backend): без теста — только превью.
+  const testDone = Object.keys(state.answers).length >= QUESTIONS.length;
+  if (!testDone) {
+    screen().innerHTML = `
+      <h2 class="title">Подбор</h2>
+      <div class="swipe" aria-hidden="true" style="filter:blur(7px);pointer-events:none">
+        <div class="profile-card">
+          <div class="photo" style="background:${CANDIDATES[0].primary_photo}">
+            <div class="gradient"></div>
+            <div class="score-ring" style="--p:90"><i>90%</i></div>
+            <div class="pname"><b>Ваши совпадения ждут</b></div>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="text-align:center;margin-top:-40px;position:relative">
+        <div style="font-size:30px">🔒</div>
+        <p style="font-weight:600;margin:6px 0 4px">Пройдите тест — откроем подбор</p>
+        <p class="muted" style="font-size:13px;margin:0 0 10px">
+          1 минута — и мы покажем людей, совместимых именно с вами.</p>
+        <button class="btn" onclick="setTab('onboarding')">Пройти тест (~1 мин)</button>
+      </div>`;
+    return;
+  }
+
+  // Пустое состояние: кандидаты на сегодня закончились.
+  if (state.cardIndex >= CANDIDATES.length) {
+    screen().innerHTML = `
+      <h2 class="title">Подбор</h2>
+      <div class="card" style="text-align:center;padding:30px 16px">
+        <div class="heartbeat" style="font-size:42px">🌙</div>
+        <p style="font-weight:600;margin:8px 0 4px">На сегодня всё</p>
+        <p class="muted" style="font-size:13px;margin:0 0 12px">
+          Качество важнее количества. Новые совместимые анкеты появятся позже —
+          или расширьте параметры поиска.</p>
+        <button class="btn secondary" onclick="widenSearch()">Расширить радиус поиска</button>
+      </div>
+      ${renderPrefs()}`;
+    return;
+  }
+
+  const c = CANDIDATES[state.cardIndex];
   screen().innerHTML = `
     <h2 class="title">Подбор</h2>
     <div class="swipe">
@@ -244,9 +295,9 @@ function renderDiscovery() {
           <p class="muted" style="font-size:13px;margin-top:10px">${c.bio}</p>
         </div>
         <div class="actions">
-          <button class="fab" onclick="nextCard()" title="Пропустить">✕</button>
-          <button class="fab video" onclick="openVideo('${c.user_id}')" title="Видеознакомство">🎥</button>
-          <button class="fab like" onclick="likeCard('${c.user_id}')" title="Лайк">❤</button>
+          <button class="fab" onclick="nextCard()" title="Пропустить" aria-label="Пропустить анкету">✕</button>
+          <button class="fab video" onclick="openVideo('${c.user_id}')" title="Видеознакомство" aria-label="Видеознакомство вслепую">🎥</button>
+          <button class="fab like" onclick="likeCard('${c.user_id}')" title="Лайк" aria-label="Поставить лайк">❤</button>
         </div>
       </div>
     </div>
@@ -269,6 +320,11 @@ function renderPrefs() {
 }
 window.setPref = (cat, v) => { PREFS[cat] = v; render(); };
 window.nextCard = () => { state.cardIndex++; render(); };
+window.widenSearch = () => {
+  state.cardIndex = 0;  // демо: расширение радиуса возвращает анкеты
+  toast("Радиус поиска расширен 📍");
+  render();
+};
 window.likeCard = (id) => {
   const c = CANDIDATES.find((x) => x.user_id === id);
   if (!state.favorites.find((f) => f.user_id === id)) state.favorites.push(c);
@@ -335,8 +391,24 @@ function renderChat() {
         <div><b>${m.other.display_name}</b><div class="muted" style="font-size:12px">онлайн</div></div>
         <button class="btn video" style="width:auto;margin-left:auto;padding:8px 12px;border-radius:20px" onclick="openVideo('${m.other.user_id}')">🎥</button>
       </div>
+      ${m.safetyDismissed ? "" : `
+      <div class="card" style="margin:0 0 10px;padding:10px 12px;background:#f0fbf5">
+        <div style="display:flex;gap:8px;align-items:flex-start">
+          <span style="font-size:18px">🛡️</span>
+          <div style="flex:1;font-size:12px;line-height:1.45">
+            <b>Безопасное знакомство:</b> не переводите деньги, не делитесь
+            адресом и документами. Первая встреча — в людном месте; предупредите
+            близких. Видеозвонок в приложении — безопасный способ проверить собеседника.
+          </div>
+          <button class="btn ghost" style="width:auto;padding:0 4px" aria-label="Скрыть совет"
+            onclick="state.chat.safetyDismissed=true;render()">✕</button>
+        </div>
+      </div>`}
       <div class="bubbles" id="bubbles">
-        ${m.messages.map((b) => `<div class="bubble ${b.me ? "me" : "them"}">${b.body}</div>`).join("") || '<p class="muted" style="text-align:center">Начните разговор 👇</p>'}
+        ${m.messages.map((b) => `<div class="bubble ${b.me ? "me" : "them"}">${b.body}${
+          b.me ? `<span style="font-size:10px;opacity:.75;margin-left:6px">${b.status === "read" ? "✓✓" : "✓"}</span>` : ""
+        }</div>`).join("") || '<p class="muted" style="text-align:center">Начните разговор 👇</p>'}
+        ${m.typing ? '<div class="bubble them" style="opacity:.7">печатает<span class="dots">…</span></div>' : ""}
       </div>
       <div class="icebreakers">
         ${ice.map((t) => `<button class="ice" onclick="sendMsg(this.textContent)">${t}</button>`).join("")}
@@ -351,13 +423,17 @@ function renderChat() {
 window.closeChat = () => { state.chat = null; render(); };
 window.sendMsg = (text) => {
   if (!text || !text.trim()) return;
-  state.chat.messages.push({ me: true, body: text.trim() });
+  state.chat.messages.push({ me: true, body: text.trim(), status: "sent" });
   state.chat.last = text.trim();
+  state.chat.typing = true;  // собеседник «печатает»
   render();
   setTimeout(() => {
+    // Собеседник прочитал и отвечает: мои сообщения -> ✓✓.
+    state.chat.messages.forEach((b) => { if (b.me) b.status = "read"; });
+    state.chat.typing = false;
     state.chat.messages.push({ me: false, body: "Это так приятно слышать 🙂 Расскажешь подробнее?" });
     render();
-  }, 900);
+  }, 1100);
 };
 
 // --- Видеознакомство «вслепую» ---

@@ -129,6 +129,8 @@ function renderRegister() {
   const requiredChecked = LEGAL_DOCS.filter((d) => d.required).every((d) => reg.consents[d.type]);
   const phoneValid = /^\+?[1-9]\d{9,14}$/.test((reg.phone || "").replace(/[\s()-]/g, ""));
 
+  // ВАЖНО: oninput не перерисовывает экран (иначе поле теряет фокус после
+  // каждой цифры) — обновляем состояние и только disabled-статус кнопки.
   const phoneStep = `
     <p class="muted" style="font-size:13px;margin:0 0 12px">
       Сначала примите обязательные документы, затем укажите номер — мы отправим код.</p>
@@ -136,9 +138,10 @@ function renderRegister() {
     <div class="field" style="margin-top:14px">
       <label>Номер телефона</label>
       <input id="reg-phone" inputmode="tel" placeholder="+7 999 123-45-67"
-        value="${reg.phone}" oninput="state.reg.phone=this.value;renderRegister()" />
+        value="${reg.phone}"
+        oninput="state.reg.phone=this.value;updateRegButtons()" />
     </div>
-    <button class="btn" ${requiredChecked && phoneValid ? "" : "disabled"} onclick="reqCode()">
+    <button class="btn" id="reg-submit" ${requiredChecked && phoneValid ? "" : "disabled"} onclick="reqCode()">
       Получить код</button>
     <div class="reg-legal">Нажимая «Получить код», вы подтверждаете, что вам исполнилось 18 лет.</div>`;
 
@@ -146,11 +149,12 @@ function renderRegister() {
   const codeStep = `
     <div class="field">
       <label>Код из SMS</label>
-      <input id="reg-code" inputmode="numeric" maxlength="4" placeholder="••••"
-        value="${reg.code}" oninput="state.reg.code=this.value;renderRegister()" />
-      <div class="otp-note">Код отправлен на <b>${reg.phone}</b> · демо: введите любые 4 цифры</div>
+      <input id="reg-code" inputmode="numeric" maxlength="6" placeholder="••••••"
+        value="${reg.code}"
+        oninput="state.reg.code=this.value;updateRegButtons()" />
+      <div class="otp-note">Код отправлен на <b>${reg.phone}</b> · демо: введите любые 4–6 цифр</div>
     </div>
-    <button class="btn" ${codeOk ? "" : "disabled"} onclick="finishReg()">Зарегистрироваться</button>`;
+    <button class="btn" id="code-submit" ${codeOk ? "" : "disabled"} onclick="finishReg()">Зарегистрироваться</button>`;
 
   screen().innerHTML = `
     <div class="reg-head">
@@ -180,6 +184,22 @@ window.reqCode = () => {
   const p = (state.reg.phone || "").replace(/[\s()-]/g, "");
   if (!/^\+?[1-9]\d{9,14}$/.test(p)) { toast("Введите корректный номер"); return; }
   state.reg.step = "code"; renderRegister();
+};
+window.updateRegButtons = () => {
+  // Точечное обновление кнопок без перерисовки экрана (сохраняет фокус ввода).
+  const submit = el("reg-submit");
+  if (submit) {
+    const requiredChecked = LEGAL_DOCS.filter((d) => d.required)
+      .every((d) => state.reg.consents[d.type]);
+    const phoneValid = /^\+?[1-9]\d{9,14}$/.test(
+      (state.reg.phone || "").replace(/[\s()-]/g, "")
+    );
+    submit.disabled = !(requiredChecked && phoneValid);
+  }
+  const codeSubmit = el("code-submit");
+  if (codeSubmit) {
+    codeSubmit.disabled = (state.reg.code || "").length < 4;
+  }
 };
 window.toggleConsent = (t) => { state.reg.consents[t] = !state.reg.consents[t]; renderRegister(); };
 window.finishReg = () => {

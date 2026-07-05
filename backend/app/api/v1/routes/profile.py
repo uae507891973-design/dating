@@ -49,7 +49,8 @@ async def get_profile(
 ) -> ProfileOut:
     profile = await db.get(Profile, user.id)
     if profile is None:
-        profile = Profile(user_id=user.id)
+        # Транзиентный объект: python-default'ы ORM ещё не применены.
+        profile = Profile(user_id=user.id, video_calls_enabled=True)
     out = ProfileOut.model_validate(profile, from_attributes=True)
     out.is_verified = user.is_verified
     return out

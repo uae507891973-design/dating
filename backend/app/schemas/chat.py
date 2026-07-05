@@ -27,6 +27,8 @@ class MatchOut(BaseModel):
     other_display_name: str | None
     other_photo_url: str | None
     other_is_verified: bool
+    other_is_online: bool = False
+    other_video_state: str = "offline"  # available | offline | disabled
     created_at: datetime
 
 

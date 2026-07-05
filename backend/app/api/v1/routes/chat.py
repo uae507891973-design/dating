@@ -22,6 +22,7 @@ from app.services.chat import generate_icebreakers, manager, screen_message
 from app.services.compatibility import compute_compatibility
 from app.services.discovery import load_answers
 from app.services.notifications import notify
+from app.services.presence import is_online, video_state
 from app.services.ratelimit import RateLimiter, get_rate_limiter
 
 router = APIRouter(tags=["chat"])
@@ -74,6 +75,8 @@ async def list_matches(
                 other_display_name=profile.display_name if profile else None,
                 other_photo_url=photo,
                 other_is_verified=other_user.is_verified if other_user else False,
+                other_is_online=is_online(other_user),
+                other_video_state=video_state(profile, other_user),
                 created_at=m.created_at,
             )
         )

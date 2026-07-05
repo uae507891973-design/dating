@@ -4,7 +4,7 @@ import enum
 import uuid
 from datetime import date
 
-from sqlalchemy import Date, Enum, Float, ForeignKey, String, Text, Uuid
+from sqlalchemy import Boolean, Date, Enum, Float, ForeignKey, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin
@@ -47,5 +47,9 @@ class Profile(Base, TimestampMixin):
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     bio: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Настройка приватности: принимать ли входящие видеозвонки.
+    video_calls_enabled: Mapped[bool] = mapped_column(
+        Boolean, default=True, nullable=False
+    )
 
     user: Mapped["User"] = relationship(back_populates="profile")  # noqa: F821

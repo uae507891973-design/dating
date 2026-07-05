@@ -23,16 +23,30 @@ const CANDIDATES = [
   { user_id: "u1", display_name: "Анна", age: 31, city: "Москва",
     bio: "Люблю книги, горы и тёплые разговоры по вечерам.",
     primary_photo: grad("#ffd1e3", "#b34cf1"), is_verified: true, score: 94,
-    common_questions: 7, reasons: ["Оба настроены на создание семьи", "Общие ценности", "Совпадение целей"] },
+    common_questions: 7, reasons: ["Оба настроены на создание семьи", "Общие ценности", "Совпадение целей"],
+    online: true, video_enabled: true },
   { user_id: "u2", display_name: "Мария", age: 28, city: "Москва",
     bio: "Архитектор. Ищу серьёзные отношения и партнёра по путешествиям.",
     primary_photo: grad("#c8f7d4", "#6c4cf1"), is_verified: true, score: 81,
-    common_questions: 7, reasons: ["Совпадение целей", "Взгляды на семью"] },
+    common_questions: 7, reasons: ["Совпадение целей", "Взгляды на семью"],
+    online: false, video_enabled: true },
   { user_id: "u3", display_name: "Екатерина", age: 34, city: "Химки",
     bio: "Врач. Ценю честность и заботу.",
     primary_photo: grad("#ffe7b3", "#ff5e8a"), is_verified: false, score: 67,
-    common_questions: 6, reasons: ["Стиль общения"] },
+    common_questions: 6, reasons: ["Стиль общения"],
+    online: true, video_enabled: false },
 ];
+
+// Состояние видеозвонка к кандидату (зеркало backend video_state).
+function videoState(c) {
+  if (c.video_enabled === false) return "disabled";
+  if (!c.online) return "offline";
+  return "available";
+}
+const VIDEO_HINT = {
+  disabled: "Собеседник отключил видеозвонки",
+  offline: "Видеозвонок доступен, когда собеседник онлайн",
+};
 let MATCHES = [
   { match_id: "m1", other: CANDIDATES[0], last: "Привет! Рада мэтчу 🙂", unread: 1,
     messages: [{ me: false, body: "Привет! Рада мэтчу 🙂" }] },
@@ -54,7 +68,7 @@ const state = {
   registered: false,
   reg: { step: "welcome", phone: "", code: "", consents: {} },
   tab: "discovery", qIndex: 0, answers: {}, importance: {}, cardIndex: 0, chat: null, video: null,
-  favorites: [], verified: false,
+  favorites: [], verified: false, videoEnabledSelf: true,
 };
 
 const el = (id) => document.getElementById(id);
@@ -299,6 +313,16 @@ function renderDiscovery() {
   }
 
   const c = CANDIDATES[state.cardIndex];
+  const vs = videoState(c);
+  const videoBtn = {
+    available: `<button class="fab video" onclick="openVideo('${c.user_id}')"
+      title="Видеознакомство" aria-label="Видеознакомство вслепую">🎥</button>`,
+    offline: `<button class="fab video off" onclick="toast('${VIDEO_HINT.offline}')"
+      title="${VIDEO_HINT.offline}" aria-label="${VIDEO_HINT.offline}" aria-disabled="true">🎥<i class="fab-sub">zzz</i></button>`,
+    disabled: `<button class="fab video off" onclick="toast('${VIDEO_HINT.disabled}')"
+      title="${VIDEO_HINT.disabled}" aria-label="${VIDEO_HINT.disabled}" aria-disabled="true">🚫</button>`,
+  }[vs];
+
   screen().innerHTML = `
     <h2 class="title">Подбор</h2>
     <div class="swipe">
@@ -307,7 +331,12 @@ function renderDiscovery() {
           <div class="gradient"></div>
           ${c.is_verified ? '<span class="vbadge">✓ Verified</span>' : ""}
           <div class="score-ring" style="--p:${c.score}"><i>${c.score}%</i></div>
-          <div class="pname"><b>${c.display_name}, ${c.age}</b><div>📍 ${c.city}</div></div>
+          <div class="pname">
+            <b>${c.display_name}, ${c.age}</b>
+            <div>📍 ${c.city} ·
+              <span class="online-chip ${c.online ? "on" : ""}">${c.online ? "● онлайн" : "○ офлайн"}</span>
+            </div>
+          </div>
         </div>
         <div class="reasons">
           <h4>Почему вы подходите</h4>
@@ -316,13 +345,27 @@ function renderDiscovery() {
         </div>
         <div class="actions">
           <button class="fab" onclick="nextCard()" title="Пропустить" aria-label="Пропустить анкету">✕</button>
-          <button class="fab video" onclick="openVideo('${c.user_id}')" title="Видеознакомство" aria-label="Видеознакомство вслепую">🎥</button>
+          <button class="fab msg" onclick="openChatFromCard('${c.user_id}')" title="Написать сообщение" aria-label="Написать сообщение">💬</button>
+          ${videoBtn}
           <button class="fab like" onclick="likeCard('${c.user_id}')" title="Лайк" aria-label="Поставить лайк">❤</button>
         </div>
       </div>
     </div>
     ${renderPrefs()}`;
 }
+
+// Переписка прямо с карточки (диалог без взаимного лайка, как на backend).
+window.openChatFromCard = (uid) => {
+  const c = CANDIDATES.find((x) => x.user_id === uid);
+  let m = MATCHES.find((x) => x.other.user_id === uid);
+  if (!m) {
+    m = { match_id: "d" + uid, other: c, last: "Напишите первым 👋",
+      unread: 0, messages: [], origin: "direct" };
+    MATCHES.unshift(m);
+  }
+  state.chat = m;
+  setTab("matches");
+};
 
 function renderPrefs() {
   const opts = [["muted", "Не важно"], ["normal", "Обычно"], ["important", "Важно"]];
@@ -406,10 +449,17 @@ function renderChat() {
   screen().innerHTML = `
     <div class="chat">
       <div class="chat-head">
-        <button class="btn ghost" style="width:auto;padding:4px 8px" onclick="closeChat()">←</button>
+        <button class="btn ghost" style="width:auto;padding:4px 8px" onclick="closeChat()" aria-label="Назад">←</button>
         <div class="avatar" style="width:40px;height:40px;background:${m.other.primary_photo}"></div>
-        <div><b>${m.other.display_name}</b><div class="muted" style="font-size:12px">онлайн</div></div>
-        <button class="btn video" style="width:auto;margin-left:auto;padding:8px 12px;border-radius:20px" onclick="openVideo('${m.other.user_id}')">🎥</button>
+        <div><b>${m.other.display_name}</b>
+          <div class="muted" style="font-size:12px">${m.other.online ? "онлайн" : "офлайн"}</div></div>
+        ${(() => {
+          const vs = videoState(m.other);
+          if (vs === "available") return `<button class="btn video-chip" onclick="openVideo('${m.other.user_id}')" aria-label="Видеозвонок">🎥</button>`;
+          const hint = VIDEO_HINT[vs];
+          const icon = vs === "disabled" ? "🚫" : "🎥";
+          return `<button class="btn video-chip off" onclick="toast('${hint}')" title="${hint}" aria-label="${hint}" aria-disabled="true">${icon}</button>`;
+        })()}
       </div>
       ${m.safetyDismissed ? "" : `
       <div class="card" style="margin:0 0 10px;padding:10px 12px;background:#f0fbf5">
@@ -459,6 +509,9 @@ window.sendMsg = (text) => {
 // --- Видеознакомство «вслепую» ---
 window.openVideo = (uid) => {
   const c = CANDIDATES.find((x) => x.user_id === uid) || state.chat?.other;
+  // Guard (зеркало backend 409 video_unavailable): запрет или офлайн.
+  const vs = videoState(c);
+  if (vs !== "available") { toast(VIDEO_HINT[vs]); return; }
   state.video = { other: c, blur: 1, revealed: false, continueMe: false, continueThem: true, seconds: 180, status: "active" };
   drawVideo();
   state.video.timer = setInterval(() => {
@@ -532,12 +585,32 @@ function renderProfile() {
       <div class="stat"><span>Город</span><b>Москва</b></div>
     </div>
     <div class="card">
+      <h4 style="margin:0 0 8px;font-size:13px;color:var(--muted);text-transform:uppercase">Приватность</h4>
+      <div class="stat">
+        <span>Принимать видеозвонки</span>
+        <button class="switch ${state.videoEnabledSelf ? "on" : ""}" role="switch"
+          aria-checked="${state.videoEnabledSelf}" aria-label="Принимать видеозвонки"
+          onclick="toggleMyVideo()"><i></i></button>
+      </div>
+      ${state.videoEnabledSelf ? "" : `<p class="muted" style="font-size:12px;margin:6px 0 0">
+        Вам не смогут звонить — кнопка видеозвонка у собеседников будет отключена.</p>`}
+    </div>
+    <div class="card">
       <h4 style="margin:0 0 8px;font-size:13px;color:var(--muted);text-transform:uppercase">Безопасность</h4>
       <div class="stat"><span>Согласие 152-ФЗ</span><span class="pill ok">принято</span></div>
       <div class="stat"><span>Модерация фото</span><b>AI + ручная</b></div>
       <div class="stat"><span>Антифрод</span><b>активен</b></div>
     </div>`;
 }
+
+window.toggleMyVideo = () => {
+  state.videoEnabledSelf = !state.videoEnabledSelf;
+  // На backend: PUT /v1/profile { video_calls_enabled: ... }
+  toast(state.videoEnabledSelf
+    ? "Видеозвонки включены 🎥"
+    : "Видеозвонки отключены — вам не смогут звонить");
+  render();
+};
 
 window.verifyMe = () => {
   state.verified = true;

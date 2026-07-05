@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     video_request_ttl_sec: int = 120    # «requested» без принятия — истекает
     video_max_active_sec: int = 900     # макс. длительность активного звонка
 
+    # Присутствие: считать пользователя онлайн N секунд после активности
+    online_window_sec: int = 300
+
     # Шифрование ПДн в покое (152-ФЗ); в prod обязателен свой длинный секрет.
     pii_secret: str = "dev-pii-secret-change-me"
 

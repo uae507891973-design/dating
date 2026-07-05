@@ -15,6 +15,18 @@ class CandidateOut(BaseModel):
     score: int               # совместимость 0..100
     common_questions: int
     reasons: list[str] = []  # «Почему вы подходите» (объяснимый мэтчинг)
+    is_online: bool = False
+    video_state: str = "offline"  # available | offline | disabled
+
+
+class DirectMessageIn(BaseModel):
+    target_user_id: uuid.UUID
+    body: str
+
+
+class DirectMessageOut(BaseModel):
+    match_id: uuid.UUID
+    message_id: uuid.UUID
 
 
 class CategoryPreferenceIn(BaseModel):

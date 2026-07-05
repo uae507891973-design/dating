@@ -17,6 +17,8 @@ class ProfileIn(BaseModel):
     intent: Intent | None = None
     city: str | None = Field(default=None, max_length=120)
     bio: str | None = Field(default=None, max_length=2000)
+    # Настройка приватности: принимать ли входящие видеозвонки.
+    video_calls_enabled: bool | None = None
 
 
 class ProfileOut(BaseModel):
@@ -27,6 +29,7 @@ class ProfileOut(BaseModel):
     intent: Intent | None
     city: str | None
     bio: str | None
+    video_calls_enabled: bool = True
     is_verified: bool = False
 
 

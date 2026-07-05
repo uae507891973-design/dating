@@ -16,17 +16,22 @@ from app.models import (
     User,
 )
 from app.models.matching import LikeType
+from app.models.message import Message
 from app.models.notification import NotificationType
 from app.models.preference import FactorImportance
+from app.models.user import UserStatus
 from app.schemas.discovery import (
     CandidateOut,
     CategoryPreferenceIn,
     CategoryPreferenceOut,
+    DirectMessageIn,
+    DirectMessageOut,
     LikeIn,
     LikeResult,
 )
 from app.services.analytics import track_event
 from app.services.blocks import is_blocked_between
+from app.services.chat import screen_message
 from app.services.compatibility import CATEGORY_LABELS
 from app.services.discovery import get_candidates, ordered_pair
 from app.services.legal import missing_reconsents
@@ -84,6 +89,8 @@ async def discover(
             score=c.compatibility.score,
             common_questions=c.compatibility.common_questions,
             reasons=c.reasons,
+            is_online=c.is_online,
+            video_state=c.video_state,
         )
         for c in candidates
     ]
@@ -198,6 +205,62 @@ async def like(
 
     await db.commit()
     return LikeResult(matched=matched, match_id=match_id)
+
+
+@router.post("/message", response_model=DirectMessageOut, status_code=201)
+async def message_from_card(
+    data: DirectMessageIn,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    limiter: RateLimiter = Depends(get_rate_limiter),
+) -> DirectMessageOut:
+    """Первое сообщение с карточки кандидата (диалог без взаимного лайка)."""
+    if await limiter.hit(
+        f"msg:{user.id}",
+        settings.message_rate_max,
+        settings.message_rate_window_sec,
+    ):
+        raise HTTPException(status_code=429, detail="rate limited")
+    if data.target_user_id == user.id:
+        raise HTTPException(status_code=400, detail="cannot message yourself")
+    if await is_blocked_between(db, user.id, data.target_user_id):
+        raise HTTPException(status_code=403, detail="interaction not allowed")
+
+    target = await db.get(User, data.target_user_id)
+    if target is None or target.status != UserStatus.active:
+        raise HTTPException(status_code=404, detail="user not found")
+
+    ok, reason = screen_message(data.body, user.is_verified)
+    if not ok:
+        raise HTTPException(status_code=400, detail=reason)
+
+    # Существующий диалог/мэтч или новый direct-диалог.
+    a, b = ordered_pair(user.id, data.target_user_id)
+    match = (
+        await db.execute(
+            select(Match).where(Match.user_a == a, Match.user_b == b)
+        )
+    ).scalar_one_or_none()
+    if match is None:
+        match = Match(user_a=a, user_b=b, origin="direct")
+        db.add(match)
+        await db.flush()
+
+    message = Message(match_id=match.id, sender_id=user.id, body=data.body.strip())
+    db.add(message)
+    await notify(
+        db,
+        data.target_user_id,
+        NotificationType.message,
+        {"title": "Новое сообщение", "match_id": str(match.id)},
+    )
+    await db.commit()
+    await db.refresh(message)
+    track_event(
+        "direct_message_sent",
+        {"from": str(user.id), "match_id": str(match.id)},
+    )
+    return DirectMessageOut(match_id=match.id, message_id=message.id)
 
 
 @router.post("/skip", status_code=204)

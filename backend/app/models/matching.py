@@ -3,7 +3,7 @@
 import enum
 import uuid
 
-from sqlalchemy import Enum, ForeignKey, UniqueConstraint, Uuid
+from sqlalchemy import Enum, ForeignKey, String, UniqueConstraint, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, TimestampMixin
@@ -54,4 +54,8 @@ class Match(Base, TimestampMixin):
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
+    )
+    # Происхождение диалога: mutual — взаимный лайк, direct — сообщение с карточки.
+    origin: Mapped[str] = mapped_column(
+        String(16), default="mutual", nullable=False
     )

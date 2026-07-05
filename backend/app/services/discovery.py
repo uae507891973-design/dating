@@ -26,6 +26,7 @@ from app.services.compatibility import (
     compute_compatibility,
 )
 from app.services.explain import generate_reasons
+from app.services.presence import is_online, video_state
 
 
 def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -47,6 +48,8 @@ class Candidate:
     is_verified: bool
     compatibility: CompatibilityResult
     reasons: list[str]
+    is_online: bool = False
+    video_state: str = "offline"
 
 
 async def load_category_weights(
@@ -185,6 +188,7 @@ async def get_candidates(
         await db.execute(select(User).where(User.id.in_(cand_ids)))
     ).scalars().all()
     verified_by_user = {u.id: u.is_verified for u in users}
+    user_by_id = {u.id: u for u in users}
 
     # Ответы всех кандидатов одним запросом (без N+1).
     answers_by_user: dict[uuid.UUID, AnswerMap] = {}
@@ -208,6 +212,7 @@ async def get_candidates(
             my_answers, their_answers, category_weights=weights
         )
         reasons = generate_reasons(compat, my_intent, profile.intent)
+        cand_user = user_by_id.get(profile.user_id)
         results.append(
             Candidate(
                 profile=profile,
@@ -215,6 +220,8 @@ async def get_candidates(
                 is_verified=verified_by_user.get(profile.user_id, False),
                 compatibility=compat,
                 reasons=reasons,
+                is_online=is_online(cand_user),
+                video_state=video_state(profile, cand_user),
             )
         )
 

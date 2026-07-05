@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user
 from app.core.config import get_settings
 from app.db.session import get_db
-from app.models import Match, User, VideoSession
+from app.models import Match, Profile, User, VideoSession
 from app.models.notification import NotificationType
 from app.models.video import VideoStatus
 from app.schemas.video import BlurIn, ContinueIn, VideoSessionOut
@@ -23,6 +23,7 @@ from app.services.analytics import track_event
 from app.services.audit import write_audit
 from app.services.blocks import is_blocked_between
 from app.services.notifications import notify
+from app.services.presence import video_state
 
 router = APIRouter(tags=["video"])
 settings = get_settings()
@@ -91,6 +92,16 @@ async def initiate_video(
     _, other_id = await _match_for_user(db, match_id, user)
     if await is_blocked_between(db, user.id, other_id):
         raise HTTPException(status_code=403, detail="interaction not allowed")
+
+    # Видеозвонок возможен, только если получатель онлайн и не запретил звонки.
+    other_user = await db.get(User, other_id)
+    other_profile = await db.get(Profile, other_id)
+    state = video_state(other_profile, other_user)
+    if state != "available":
+        raise HTTPException(
+            status_code=409,
+            detail={"error": "video_unavailable", "reason": state},
+        )
 
     active = (
         await db.execute(

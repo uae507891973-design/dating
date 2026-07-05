@@ -7,6 +7,7 @@ from sqlalchemy import asc, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
+from app.core.config import get_settings
 from app.core.security import TokenError, decode_token
 from app.db.session import SessionLocal, get_db
 from app.models import Match, Message, Photo, Profile, User
@@ -21,8 +22,10 @@ from app.services.chat import generate_icebreakers, manager, screen_message
 from app.services.compatibility import compute_compatibility
 from app.services.discovery import load_answers
 from app.services.notifications import notify
+from app.services.ratelimit import RateLimiter, get_rate_limiter
 
 router = APIRouter(tags=["chat"])
+settings = get_settings()
 
 
 async def _match_for_user(
@@ -100,7 +103,14 @@ async def send_message(
     data: MessageIn,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    limiter: RateLimiter = Depends(get_rate_limiter),
 ) -> MessageOut:
+    if await limiter.hit(
+        f"msg:{user.id}",
+        settings.message_rate_max,
+        settings.message_rate_window_sec,
+    ):
+        raise HTTPException(status_code=429, detail="rate limited")
     _, other_id = await _match_for_user(db, match_id, user)
     if await is_blocked_between(db, user.id, other_id):
         raise HTTPException(status_code=403, detail="interaction not allowed")

@@ -186,9 +186,24 @@ async def get_candidates(
     ).scalars().all()
     verified_by_user = {u.id: u.is_verified for u in users}
 
+    # Ответы всех кандидатов одним запросом (без N+1).
+    answers_by_user: dict[uuid.UUID, AnswerMap] = {}
+    rows = (
+        await db.execute(
+            select(PsychotestAnswer).where(
+                PsychotestAnswer.user_id.in_(cand_ids)
+            )
+        )
+    ).scalars().all()
+    for r in rows:
+        answers_by_user.setdefault(r.user_id, {})[r.question_id] = (
+            r.value,
+            r.importance,
+        )
+
     results: list[Candidate] = []
     for profile in candidate_profiles:
-        their_answers = await load_answers(db, profile.user_id)
+        their_answers = answers_by_user.get(profile.user_id, {})
         compat = compute_compatibility(
             my_answers, their_answers, category_weights=weights
         )

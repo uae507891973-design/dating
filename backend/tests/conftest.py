@@ -21,6 +21,10 @@ from app.db.base import Base  # noqa: E402
 from app.db.session import get_db  # noqa: E402
 from app.main import app  # noqa: E402
 from app.services.otp import MemoryOTPStore, get_otp_store  # noqa: E402
+from app.services.ratelimit import (  # noqa: E402
+    MemoryRateLimiter,
+    get_rate_limiter,
+)
 
 test_engine = create_async_engine(
     "sqlite+aiosqlite://",
@@ -59,6 +63,9 @@ async def client(otp_store: MemoryOTPStore) -> AsyncClient:
 
     app.dependency_overrides[get_db] = _override_get_db
     app.dependency_overrides[get_otp_store] = lambda: otp_store
+    # Свежий in-memory rate-limiter на каждый тест (без утечки между тестами).
+    limiter = MemoryRateLimiter()
+    app.dependency_overrides[get_rate_limiter] = lambda: limiter
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:

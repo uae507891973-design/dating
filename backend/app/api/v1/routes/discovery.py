@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
+from app.core.config import get_settings
 from app.db.session import get_db
 from app.models import (
     CategoryPreference,
@@ -30,8 +31,10 @@ from app.services.compatibility import CATEGORY_LABELS
 from app.services.discovery import get_candidates, ordered_pair
 from app.services.legal import missing_reconsents
 from app.services.notifications import notify
+from app.services.ratelimit import RateLimiter, get_rate_limiter
 
 router = APIRouter(prefix="/discovery", tags=["discovery"])
+settings = get_settings()
 
 
 @router.get("", response_model=list[CandidateOut])
@@ -152,8 +155,15 @@ async def like(
     data: LikeIn,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    limiter: RateLimiter = Depends(get_rate_limiter),
 ) -> LikeResult:
     """Лайк кандидата; при взаимности создаётся мэтч."""
+    if await limiter.hit(
+        f"like:{user.id}", settings.like_rate_max, settings.like_rate_window_sec
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="rate limited"
+        )
     if data.target_user_id == user.id:
         raise HTTPException(status_code=400, detail="cannot like yourself")
     if await is_blocked_between(db, user.id, data.target_user_id):

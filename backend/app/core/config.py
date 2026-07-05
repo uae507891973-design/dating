@@ -26,6 +26,20 @@ class Settings(BaseSettings):
     # Redis
     redis_url: str = "redis://localhost:6379/0"
 
+    # CORS (список origin для web-клиента; пусто = запросы только same-origin)
+    cors_origins: list[str] = []
+
+    # Общие лимиты действий (rate-limit)
+    ratelimit_backend: str = "redis"    # redis | memory
+    like_rate_max: int = 100            # лайков в окно
+    like_rate_window_sec: int = 60
+    message_rate_max: int = 60          # сообщений в окно
+    message_rate_window_sec: int = 60
+
+    # Видеосессии: авто-истечение
+    video_request_ttl_sec: int = 120    # «requested» без принятия — истекает
+    video_max_active_sec: int = 900     # макс. длительность активного звонка
+
     # Шифрование ПДн в покое (152-ФЗ); в prod обязателен свой длинный секрет.
     pii_secret: str = "dev-pii-secret-change-me"
 

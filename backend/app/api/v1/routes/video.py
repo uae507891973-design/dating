@@ -40,6 +40,34 @@ async def _match_for_user(
     return match, other
 
 
+def _age_sec(dt: datetime) -> float:
+    now = datetime.now(UTC)
+    ref = dt if dt.tzinfo is not None else dt.replace(tzinfo=UTC)
+    return (now - ref).total_seconds()
+
+
+async def _apply_expiry(db: AsyncSession, session: VideoSession) -> None:
+    """Авто-истечение зависших сессий (не принят вовремя / слишком долгий звонок)."""
+    changed = False
+    if (
+        session.status == VideoStatus.requested
+        and _age_sec(session.created_at) > settings.video_request_ttl_sec
+    ):
+        session.status = VideoStatus.declined
+        session.ended_at = datetime.now(UTC)
+        changed = True
+    elif (
+        session.status == VideoStatus.active
+        and session.started_at is not None
+        and _age_sec(session.started_at) > settings.video_max_active_sec
+    ):
+        session.status = VideoStatus.ended
+        session.ended_at = datetime.now(UTC)
+        changed = True
+    if changed:
+        await db.commit()
+
+
 async def _session_for_user(
     db: AsyncSession, session_id: uuid.UUID, user: User
 ) -> tuple[VideoSession, Match]:
@@ -47,6 +75,7 @@ async def _session_for_user(
     if session is None:
         raise HTTPException(status_code=404, detail="session not found")
     match, _ = await _match_for_user(db, session.match_id, user)
+    await _apply_expiry(db, session)
     return session, match
 
 

@@ -163,9 +163,8 @@ function renderRegister() {
     ${LEGAL_DOCS.map((d) => consentRow(d)).join("")}
     <div class="field" style="margin-top:14px">
       <label>Номер телефона</label>
-      <input id="reg-phone" inputmode="tel" placeholder="+7 999 123-45-67"
-        value="${reg.phone}"
-        oninput="state.reg.phone=this.value;updateRegButtons()" />
+      <input id="reg-phone" type="tel" inputmode="tel" name="phone"
+        autocomplete="tel" placeholder="+79991234567" maxlength="16" />
     </div>
     <button class="btn" id="reg-submit" ${requiredChecked && phoneValid ? "" : "disabled"} onclick="reqCode()">
       Получить код</button>
@@ -175,9 +174,8 @@ function renderRegister() {
   const codeStep = `
     <div class="field">
       <label>Код из SMS</label>
-      <input id="reg-code" inputmode="numeric" maxlength="6" placeholder="••••••"
-        value="${reg.code}"
-        oninput="state.reg.code=this.value;updateRegButtons()" />
+      <input id="reg-code" type="text" inputmode="numeric" name="otp"
+        autocomplete="one-time-code" maxlength="6" placeholder="••••••" />
       <div class="otp-note">Код отправлен на <b>${reg.phone}</b> · демо: введите любые 4–6 цифр</div>
     </div>
     <button class="btn" id="code-submit" ${codeOk ? "" : "disabled"} onclick="finishReg()">Зарегистрироваться</button>`;
@@ -189,6 +187,39 @@ function renderRegister() {
       <p>${reg.step === "phone" ? "Согласия и номер телефона" : "Введите код из SMS"}</p>
     </div>
     ${reg.step === "phone" ? phoneStep : codeStep}`;
+  attachRegInputs();
+}
+
+// Программные обработчики ввода: надёжнее инлайновых (автозаполнение,
+// вставка из буфера), значение восстанавливается после перерисовок.
+function attachRegInputs() {
+  const phone = el("reg-phone");
+  if (phone) {
+    phone.value = state.reg.phone || "";
+    phone.addEventListener("input", () => {
+      // Нормализация: «+» только в начале, далее до 15 цифр.
+      let v = phone.value.replace(/[^\d+]/g, "");
+      const plus = v.startsWith("+");
+      const digits = v.replace(/\D/g, "").slice(0, 15);
+      v = (plus ? "+" : "") + digits;
+      if (v !== phone.value) phone.value = v;
+      state.reg.phone = v;
+      updateRegButtons();
+    });
+  }
+  const code = el("reg-code");
+  if (code) {
+    code.value = state.reg.code || "";
+    code.addEventListener("input", () => {
+      const v = code.value.replace(/\D/g, "").slice(0, 6);
+      if (v !== code.value) code.value = v;
+      state.reg.code = v;
+      updateRegButtons();
+    });
+    code.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && (state.reg.code || "").length >= 4) finishReg();
+    });
+  }
 }
 
 function consentRow(d) {

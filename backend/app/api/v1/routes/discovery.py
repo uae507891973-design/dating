@@ -28,6 +28,7 @@ from app.services.analytics import track_event
 from app.services.blocks import is_blocked_between
 from app.services.compatibility import CATEGORY_LABELS
 from app.services.discovery import get_candidates, ordered_pair
+from app.services.legal import missing_reconsents
 from app.services.notifications import notify
 
 router = APIRouter(prefix="/discovery", tags=["discovery"])
@@ -41,6 +42,14 @@ async def discover(
     db: AsyncSession = Depends(get_db),
 ) -> list[CandidateOut]:
     """Ранжированная по совместимости подборка кандидатов."""
+    # Гейт: актуальные согласия (152-ФЗ) при смене версии документов.
+    pending = await missing_reconsents(db, user.id)
+    if pending:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": "reconsent_required", "missing": pending},
+        )
+
     # Гейт: анкета заполнена (пол/кого ищу) и тест пройден (есть психопрофиль).
     profile = await db.get(Profile, user.id)
     psychoprofile = await db.get(Psychoprofile, user.id)

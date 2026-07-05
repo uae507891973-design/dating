@@ -4,9 +4,10 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, Integer, String, Uuid
+from sqlalchemy import Boolean, DateTime, Enum, Integer, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.crypto import EncryptedStr
 from app.db.base import Base, TimestampMixin
 
 
@@ -29,12 +30,12 @@ class User(Base, TimestampMixin):
     id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    # PII (на фундаменте — обычные поля; шифрование PII — Стадия 1.1)
+    # PII шифруется в покое (AES-SIV, детерминированно — поиск/уникальность работают).
     phone: Mapped[str | None] = mapped_column(
-        String(32), unique=True, index=True, nullable=True
+        EncryptedStr(255), unique=True, index=True, nullable=True
     )
     email: Mapped[str | None] = mapped_column(
-        String(255), unique=True, index=True, nullable=True
+        EncryptedStr(512), unique=True, index=True, nullable=True
     )
 
     status: Mapped[UserStatus] = mapped_column(

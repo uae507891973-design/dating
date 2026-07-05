@@ -30,6 +30,12 @@ def validate_prod_settings() -> None:
         problems.append("debug=True недопустим в prod")
     if settings.otp_debug_log:
         problems.append("otp_debug_log=True недопустим в prod")
+    weak_pii = (
+        settings.pii_secret in ("", "dev-pii-secret-change-me")
+        or len(settings.pii_secret) < 32
+    )
+    if weak_pii:
+        problems.append("pii_secret не задан или слишком короткий (нужно ≥32 символов)")
     if problems:
         raise RuntimeError("Небезопасная prod-конфигурация: " + "; ".join(problems))
 

@@ -9,3 +9,7 @@ class LegalDocOut(BaseModel):
     title: str
     url: str
     required: bool
+
+
+class ReconsentIn(BaseModel):
+    accepted_documents: list[str]

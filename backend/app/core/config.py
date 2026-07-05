@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     # Redis
     redis_url: str = "redis://localhost:6379/0"
 
+    # Шифрование ПДн в покое (152-ФЗ); в prod обязателен свой длинный секрет.
+    pii_secret: str = "dev-pii-secret-change-me"
+
     # JWT
     jwt_secret: str = "change-me-in-prod"  # переопределяется в окружении
     jwt_algorithm: str = "HS256"

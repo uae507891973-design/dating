@@ -22,20 +22,21 @@ def test_prod_guard_rejects_default_secret() -> None:
     from app.main import settings, validate_prod_settings
 
     orig = (settings.environment, settings.jwt_secret, settings.debug,
-            settings.otp_debug_log)
+            settings.otp_debug_log, settings.pii_secret)
     try:
         settings.environment = "prod"
         settings.debug = False
         settings.otp_debug_log = False
+        settings.pii_secret = "p" * 40
         settings.jwt_secret = "change-me-in-prod"
         with pytest.raises(RuntimeError):
             validate_prod_settings()
-        # Надёжный секрет — проходит.
+        # Надёжные секреты — проходит.
         settings.jwt_secret = "x" * 40
         validate_prod_settings()
     finally:
         (settings.environment, settings.jwt_secret, settings.debug,
-         settings.otp_debug_log) = orig
+         settings.otp_debug_log, settings.pii_secret) = orig
 
 
 # --- A5: OTP 6 цифр, сброс попыток при новом коде, код жертвы не удаляется ---
@@ -98,6 +99,30 @@ async def _reg(client, otp_store, phone, gender, looking_for):
         headers=headers,
     )
     return headers
+
+
+async def test_phone_encrypted_at_rest(
+    client: AsyncClient, otp_store: MemoryOTPStore, session
+) -> None:
+    from sqlalchemy import text
+
+    phone = "+79997770100"
+    await client.post("/v1/auth/request-otp", json={"phone": phone})
+    code = await otp_store.get_code(phone)
+    await client.post(
+        "/v1/auth/verify-otp",
+        json={"phone": phone, "code": code,
+              "accepted_documents": ["privacy", "terms"]},
+    )
+    # Сырое значение в БД не равно открытому телефону.
+    raw = (await session.execute(text("SELECT phone FROM users"))).scalars().all()
+    assert phone not in raw
+    assert all(phone != r for r in raw)
+
+    # Но ORM-поиск по открытому телефону работает (детерминированное шифрование).
+    found = (await session.execute(
+        select(User).where(User.phone == phone))).scalar_one()
+    assert found.phone == phone
 
 
 async def _tokens(client, otp_store, phone):

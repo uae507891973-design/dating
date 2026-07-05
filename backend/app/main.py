@@ -37,6 +37,8 @@ def validate_prod_settings() -> None:
     )
     if weak_pii:
         problems.append("pii_secret не задан или слишком короткий (нужно ≥32 символов)")
+    if settings.billing_webhook_secret in ("", "dev-webhook-secret"):
+        problems.append("billing_webhook_secret не задан")
     if problems:
         raise RuntimeError("Небезопасная prod-конфигурация: " + "; ".join(problems))
 

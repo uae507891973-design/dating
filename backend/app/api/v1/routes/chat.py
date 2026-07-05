@@ -116,9 +116,13 @@ async def send_message(
     db: AsyncSession = Depends(get_db),
     limiter: RateLimiter = Depends(get_rate_limiter),
 ) -> MessageOut:
+    # Премиум расширяет лимит сообщений (entitlement extended_limits).
+    from app.services.billing import is_premium
+
+    multiplier = 5 if await is_premium(db, user.id) else 1
     if await limiter.hit(
         f"msg:{user.id}",
-        settings.message_rate_max,
+        settings.message_rate_max * multiplier,
         settings.message_rate_window_sec,
     ):
         raise HTTPException(status_code=429, detail="rate limited")

@@ -70,6 +70,16 @@ tests/               # pytest
 
 > SMS-провайдер, шифрование PII и сами тексты документов согласий подключаются далее; интерфейсы под это уже заложены.
 
+## Что сделано на Стадии 4 (монетизация)
+- Каталог: `GET /v1/billing/plans` — подписки (premium_1m/3m) и продукты (boost_24h).
+- Оплата: `POST /v1/billing/checkout` → платёж + confirmation_url (провайдер —
+  заглушка под ЮKassa/CloudPayments/RuStore); подтверждение —
+  `POST /v1/billing/webhook` (секрет-заголовок; идемпотентно); чек 54-ФЗ — `receipt_url`.
+- Подписка: `GET /v1/billing/subscription` (entitlements), `POST /v1/billing/cancel`
+  (отключение автопродления, доступ до конца срока), `GET /v1/billing/payments`.
+- Премиум-фичи: `GET /v1/discovery/liked-me` (иначе 402 premium_required),
+  лимит сообщений ×5, буст анкеты поднимает в выдаче на 24 ч.
+
 ### Верификация профиля (селфи + документ)
 - Шаги: `POST /v1/verify/selfie` (с liveness-предпроверкой) и `POST /v1/verify/document`.
 - Файлы хранятся приватно (`verify_media_dir`, не раздаются статикой) и используются

@@ -18,6 +18,7 @@ from app.models import (
 from app.models.matching import LikeType
 from app.models.message import Message
 from app.models.notification import NotificationType
+from app.models.photo import ModerationStatus
 from app.models.preference import FactorImportance
 from app.models.user import UserStatus
 from app.schemas.discovery import (
@@ -30,6 +31,7 @@ from app.schemas.discovery import (
     LikeResult,
 )
 from app.services.analytics import track_event
+from app.services.billing import is_premium
 from app.services.blocks import is_blocked_between
 from app.services.chat import screen_message
 from app.services.compatibility import CATEGORY_LABELS
@@ -205,6 +207,61 @@ async def like(
 
     await db.commit()
     return LikeResult(matched=matched, match_id=match_id)
+
+
+@router.get("/liked-me", response_model=list[CandidateOut])
+async def who_liked_me(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[CandidateOut]:
+    """Кто меня лайкнул — премиум-функция."""
+    if not await is_premium(db, user.id):
+        raise HTTPException(
+            status_code=402,
+            detail={"error": "premium_required", "feature": "who_liked_me"},
+        )
+
+    liker_ids = (
+        await db.execute(
+            select(Like.from_user).where(
+                Like.to_user == user.id, Like.type == LikeType.like
+            )
+        )
+    ).scalars().all()
+    if not liker_ids:
+        return []
+
+    profiles = (
+        await db.execute(
+            select(Profile).where(Profile.user_id.in_(liker_ids))
+        )
+    ).scalars().all()
+    from app.models import Photo
+
+    photos = (
+        await db.execute(
+            select(Photo).where(
+                Photo.user_id.in_(liker_ids),
+                Photo.is_primary.is_(True),
+                Photo.moderation_status == ModerationStatus.approved,
+            )
+        )
+    ).scalars().all()
+    photo_by_user = {p.user_id: p.url for p in photos}
+
+    return [
+        CandidateOut(
+            user_id=p.user_id,
+            display_name=p.display_name,
+            city=p.city,
+            bio=p.bio,
+            primary_photo_url=photo_by_user.get(p.user_id),
+            is_verified=False,
+            score=0,
+            common_questions=0,
+        )
+        for p in profiles
+    ]
 
 
 @router.post("/message", response_model=DirectMessageOut, status_code=201)

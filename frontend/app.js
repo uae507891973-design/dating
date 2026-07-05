@@ -80,6 +80,7 @@ const state = {
   tab: "discovery", qIndex: 0, answers: {}, importance: {}, cardIndex: 0, chat: null, video: null,
   favorites: [], verified: false, videoEnabledSelf: true,
   verify: { selfie: false, doc: false, consent: false, submitted: false },
+  premium: false, boost: false,
 };
 
 const el = (id) => document.getElementById(id);
@@ -442,10 +443,37 @@ window.likeCard = (id) => {
 };
 
 // --- Избранное ---
+function renderLikedMe() {
+  const liker = CANDIDATES[1];
+  if (state.premium) {
+    return `
+    <div class="card">
+      <h4 style="margin:0 0 8px;font-size:13px;color:var(--muted);text-transform:uppercase">Вас лайкнули</h4>
+      <div class="match-item" onclick="openChatFromCard('${liker.user_id}')">
+        <div class="avatar" style="background:${liker.primary_photo}"></div>
+        <div class="match-meta"><b>${liker.display_name}, ${liker.age}</b>
+          <small>📍 ${liker.city}</small></div>
+        <span class="pill info">${liker.score}%</span>
+      </div>
+    </div>`;
+  }
+  return `
+    <div class="card" style="position:relative;overflow:hidden">
+      <h4 style="margin:0 0 8px;font-size:13px;color:var(--muted);text-transform:uppercase">Вас лайкнули · 1</h4>
+      <div class="match-item" style="filter:blur(6px);pointer-events:none" aria-hidden="true">
+        <div class="avatar" style="background:${liker.primary_photo}"></div>
+        <div class="match-meta"><b>Скрытый профиль</b><small>Доступно с Премиум</small></div>
+      </div>
+      <button class="btn secondary" style="margin-top:6px" onclick="setTab('profile')">
+        👑 Открыть с Премиум</button>
+    </div>`;
+}
+
 function renderFavorites() {
   if (!state.favorites.length) {
     screen().innerHTML = `
       <h2 class="title">Избранное</h2>
+      ${renderLikedMe()}
       <div class="card" style="text-align:center;padding:30px 16px">
         <div class="heartbeat" style="font-size:44px">⭐</div>
         <p class="muted">Здесь будут анкеты, которым вы поставили ❤.<br>Лайкайте в подборе.</p>
@@ -454,6 +482,7 @@ function renderFavorites() {
     return;
   }
   screen().innerHTML = `<h2 class="title">Избранное</h2>
+    ${renderLikedMe()}
     <div class="fav-grid">
       ${state.favorites.map((c) => `
         <div class="fav-card" onclick="openChatByUser('${c.user_id}')">
@@ -660,6 +689,7 @@ function renderProfile() {
       <span class="pill ${v ? "ok" : "info"}">${v ? "✓ Verified" : "○ Не верифицирован"}</span>
     </div>
     ${v ? "" : renderVerifyBlock()}
+    ${renderPremiumBlock()}
     <div class="card">
       <div class="stat"><span>Намерение</span><b>Создание семьи</b></div>
       <div class="stat"><span>Тест совместимости</span><b>${answered}/${QUESTIONS.length} ответов</b></div>
@@ -739,6 +769,61 @@ window.vfSubmit = () => {
     toast("Профиль подтверждён ✓");
     render();
   }, 2500);
+};
+
+// --- Премиум (Стадия 4: монетизация) ---
+function renderPremiumBlock() {
+  if (state.premium) {
+    return `
+    <div class="card premium-card">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:26px">👑</span>
+        <div style="flex:1"><b>Премиум активен</b>
+          <small style="display:block;color:var(--muted)">до ${new Date(Date.now() + 30 * 864e5).toLocaleDateString("ru-RU")} · автопродление</small></div>
+      </div>
+      <div class="stat"><span>Кто меня лайкнул</span><span class="pill ok">открыто</span></div>
+      <div class="stat"><span>Лимиты сообщений</span><b>×5</b></div>
+      <div class="stat"><span>Буст анкеты (24 ч)</span>
+        ${state.boost ? '<span class="pill ok">активен</span>'
+          : '<button class="btn secondary vbtn" onclick="buyBoost()">149 ₽</button>'}</div>
+      <button class="btn ghost" style="margin-top:6px" onclick="cancelPremium()">Отключить автопродление</button>
+    </div>`;
+  }
+  return `
+    <div class="card premium-card">
+      <div style="text-align:center">
+        <span style="font-size:30px">👑</span>
+        <p style="font-weight:600;margin:6px 0 2px">Премиум</p>
+        <p class="muted" style="font-size:12px;margin:0 0 10px">
+          «Кто меня лайкнул», повышенные лимиты сообщений и приоритет анкеты.</p>
+      </div>
+      <div class="plan-row" onclick="buyPremium('1 месяц', 499)">
+        <span>1 месяц</span><b>499 ₽</b></div>
+      <div class="plan-row" onclick="buyPremium('3 месяца', 1190)">
+        <span>3 месяца <span class="pill info" style="font-size:10px">выгоднее</span></span><b>1 190 ₽</b></div>
+      <p class="muted" style="font-size:10px;text-align:center;margin:8px 0 0">
+        Демо-режим: оплата не списывается. Цены демонстрационные.</p>
+    </div>`;
+}
+window.buyPremium = (plan, price) => {
+  // Демо: checkout -> webhook succeeded (на backend: POST /v1/billing/checkout).
+  toast(`Оплата ${price} ₽ (демо)...`);
+  setTimeout(() => {
+    state.premium = true;
+    toast(`Премиум «${plan}» активирован 👑`);
+    render();
+  }, 900);
+};
+window.buyBoost = () => {
+  toast("Оплата 149 ₽ (демо)...");
+  setTimeout(() => {
+    state.boost = true;
+    toast("Буст активен на 24 часа 🚀");
+    render();
+  }, 900);
+};
+window.cancelPremium = () => {
+  toast("Автопродление отключено — Премиум действует до конца срока");
 };
 
 window.toggleMyVideo = () => {

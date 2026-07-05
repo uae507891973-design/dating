@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     # Присутствие: считать пользователя онлайн N секунд после активности
     online_window_sec: int = 300
 
+    # Биллинг: секрет вебхука провайдера (в prod — подпись провайдера)
+    billing_webhook_secret: str = "dev-webhook-secret"
+
     # Шифрование ПДн в покое (152-ФЗ); в prod обязателен свой длинный секрет.
     pii_secret: str = "dev-pii-secret-change-me"
 

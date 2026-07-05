@@ -1,6 +1,7 @@
 """ORM-модели."""
 
 from app.models.antifraud import RiskFlag
+from app.models.billing import Payment, Subscription
 from app.models.consent import Consent
 from app.models.matching import Like, Match
 from app.models.message import Message
@@ -35,6 +36,8 @@ __all__ = [
     "Message",
     "RiskFlag",
     "VideoSession",
+    "Subscription",
+    "Payment",
     "DeviceToken",
     "Notification",
 ]

@@ -225,8 +225,23 @@ async def get_candidates(
             )
         )
 
-    # Ранжирование: по убыванию совместимости.
-    results.sort(key=lambda c: c.compatibility.score, reverse=True)
+    # Ранжирование: совместимость + приоритет буста (микротранзакция).
+    from datetime import UTC, datetime
+
+    now = datetime.now(UTC)
+
+    def _boosted(c: Candidate) -> bool:
+        bu = c.profile.boost_until
+        if bu is None:
+            return False
+        if bu.tzinfo is None:
+            bu = bu.replace(tzinfo=UTC)
+        return bu > now
+
+    results.sort(
+        key=lambda c: (c.compatibility.score + (15 if _boosted(c) else 0)),
+        reverse=True,
+    )
     return results[:limit]
 
 

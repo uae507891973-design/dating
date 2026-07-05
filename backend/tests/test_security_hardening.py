@@ -22,12 +22,14 @@ def test_prod_guard_rejects_default_secret() -> None:
     from app.main import settings, validate_prod_settings
 
     orig = (settings.environment, settings.jwt_secret, settings.debug,
-            settings.otp_debug_log, settings.pii_secret)
+            settings.otp_debug_log, settings.pii_secret,
+            settings.billing_webhook_secret)
     try:
         settings.environment = "prod"
         settings.debug = False
         settings.otp_debug_log = False
         settings.pii_secret = "p" * 40
+        settings.billing_webhook_secret = "w" * 40
         settings.jwt_secret = "change-me-in-prod"
         with pytest.raises(RuntimeError):
             validate_prod_settings()
@@ -36,7 +38,8 @@ def test_prod_guard_rejects_default_secret() -> None:
         validate_prod_settings()
     finally:
         (settings.environment, settings.jwt_secret, settings.debug,
-         settings.otp_debug_log, settings.pii_secret) = orig
+         settings.otp_debug_log, settings.pii_secret,
+         settings.billing_webhook_secret) = orig
 
 
 # --- A5: OTP 6 цифр, сброс попыток при новом коде, код жертвы не удаляется ---

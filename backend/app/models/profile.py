@@ -2,9 +2,19 @@
 
 import enum
 import uuid
-from datetime import date
+from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, Enum, Float, ForeignKey, String, Text, Uuid
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    String,
+    Text,
+    Uuid,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin
@@ -50,6 +60,10 @@ class Profile(Base, TimestampMixin):
     # Настройка приватности: принимать ли входящие видеозвонки.
     video_calls_enabled: Mapped[bool] = mapped_column(
         Boolean, default=True, nullable=False
+    )
+    # Буст анкеты (микротранзакция): приоритет в подборе до этого времени.
+    boost_until: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
     )
 
     user: Mapped["User"] = relationship(back_populates="profile")  # noqa: F821

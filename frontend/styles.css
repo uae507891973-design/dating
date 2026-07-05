@@ -250,6 +250,17 @@ h2.title { margin: 4px 0 14px; font-size: 20px; }
 .vstep.done .vnum { background: var(--ok); color: #fff; }
 .vbtn { width: auto; padding: 8px 12px; font-size: 12px; }
 
+/* Премиум */
+.premium-card { border: 1.5px solid #f1d98a; background: linear-gradient(180deg, #fffdf4, #fff); }
+.plan-row {
+  display: flex; justify-content: space-between; align-items: center;
+  border: 1.5px solid var(--line); border-radius: 12px; padding: 12px 14px;
+  margin-bottom: 8px; cursor: pointer; transition: border-color .15s, transform .12s;
+  font-size: 14px;
+}
+.plan-row:hover { border-color: #e8c96a; transform: translateX(2px); }
+.plan-row b { color: #b8860b; }
+
 /* Переключатель (switch) */
 .switch {
   width: 46px; height: 26px; border-radius: 26px; border: none; cursor: pointer;

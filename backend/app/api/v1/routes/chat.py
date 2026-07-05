@@ -97,6 +97,14 @@ async def get_messages(
             .order_by(asc(Message.created_at))
         )
     ).scalars().all()
+    # Получение истории получателем = доставка: sent -> delivered.
+    changed = False
+    for m in rows:
+        if m.sender_id != user.id and m.status == MessageStatus.sent:
+            m.status = MessageStatus.delivered
+            changed = True
+    if changed:
+        await db.commit()
     return [MessageOut.model_validate(m, from_attributes=True) for m in rows]
 
 
@@ -155,7 +163,9 @@ async def mark_read(
             select(Message).where(
                 Message.match_id == match_id,
                 Message.sender_id != user.id,
-                Message.status == MessageStatus.sent,
+                Message.status.in_(
+                    [MessageStatus.sent, MessageStatus.delivered]
+                ),
             )
         )
     ).scalars().all()

@@ -9,12 +9,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_moderator
 from app.db.session import get_db
-from app.models import AuditLog, Photo, RiskFlag, User
+from app.models import AuditLog, Photo, RiskFlag, User, Verification
 from app.models.antifraud import FlagStatus
 from app.models.photo import ModerationStatus
+from app.models.safety import VerificationStatus
 from app.schemas.antifraud import AssessmentOut, RiskFlagOut
 from app.schemas.profile import ModerationDecisionIn, ModerationPhotoOut
-from app.schemas.safety import AuditOut
+from app.schemas.safety import AuditOut, ModerationVerificationOut
 from app.services.analytics import track_event
 from app.services.antifraud import evaluate_and_apply
 from app.services.audit import write_audit
@@ -132,6 +133,71 @@ async def resolve_flag(
         risk_score=flag.risk_score,
         reasons=flag.reasons,
         status=flag.status.value,
+    )
+
+
+@router.get("/verifications", response_model=list[ModerationVerificationOut])
+async def verification_queue(
+    _: User = Depends(get_current_moderator),
+    db: AsyncSession = Depends(get_db),
+) -> list[ModerationVerificationOut]:
+    """Заявки на верификацию с обоими файлами, ожидающие решения."""
+    rows = (
+        await db.execute(
+            select(Verification)
+            .where(
+                Verification.status == VerificationStatus.pending,
+                Verification.selfie_path.is_not(None),
+                Verification.document_path.is_not(None),
+            )
+            .order_by(desc(Verification.created_at))
+        )
+    ).scalars().all()
+    return [
+        ModerationVerificationOut(
+            id=v.id, user_id=v.user_id, status=v.status, created_at=v.created_at
+        )
+        for v in rows
+    ]
+
+
+@router.post(
+    "/verifications/{verification_id}/decision",
+    response_model=ModerationVerificationOut,
+)
+async def decide_verification(
+    verification_id: uuid.UUID,
+    data: ModerationDecisionIn,
+    moderator: User = Depends(get_current_moderator),
+    db: AsyncSession = Depends(get_db),
+) -> ModerationVerificationOut:
+    """Решение по заявке: approved выставляет бейдж пользователю."""
+    if data.decision not in (ModerationStatus.approved, ModerationStatus.rejected):
+        raise HTTPException(
+            status_code=400, detail="decision must be approved/rejected"
+        )
+    v = await db.get(Verification, verification_id)
+    if v is None:
+        raise HTTPException(status_code=404, detail="verification not found")
+
+    v.status = (
+        VerificationStatus.approved
+        if data.decision == ModerationStatus.approved
+        else VerificationStatus.rejected
+    )
+    v.decided_at = datetime.now(UTC)
+    target = await db.get(User, v.user_id)
+    if target is not None:
+        target.is_verified = v.status == VerificationStatus.approved
+    write_audit(db, moderator.id, "verification_decision", str(v.id))
+    await db.commit()
+    await db.refresh(v)
+    track_event(
+        "verification_completed",
+        {"user_id": str(v.user_id), "status": v.status.value},
+    )
+    return ModerationVerificationOut(
+        id=v.id, user_id=v.user_id, status=v.status, created_at=v.created_at
     )
 
 

@@ -28,12 +28,15 @@ class Verification(Base, TimestampMixin):
         nullable=False,
         index=True,
     )
-    type: Mapped[str] = mapped_column(String(32), default="selfie", nullable=False)
+    type: Mapped[str] = mapped_column(String(32), default="identity", nullable=False)
     status: Mapped[VerificationStatus] = mapped_column(
         Enum(VerificationStatus, name="verification_status"),
         default=VerificationStatus.pending,
         nullable=False,
     )
+    # Приватные пути файлов проверки (селфи + документ). НЕ публикуются.
+    selfie_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    document_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
     decided_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )

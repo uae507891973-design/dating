@@ -196,6 +196,60 @@ h2.title { margin: 4px 0 14px; font-size: 20px; }
 }
 .video-chip.off { opacity: .45; filter: grayscale(.7); cursor: not-allowed; background: #9aa; }
 
+/* Метаданные сообщения: время + статус */
+.msg-meta {
+  display: inline-block; font-size: 10px; opacity: .7; margin-left: 8px;
+  vertical-align: bottom; white-space: nowrap;
+}
+.bubble.me .msg-meta.read { color: #b9f6ce; opacity: 1; }
+.bubble.sticker { background: transparent !important; font-size: 52px; padding: 4px 8px; box-shadow: none; }
+.bubble.sticker .msg-meta { display: block; text-align: right; color: var(--muted); }
+
+/* Клавиатура эмодзи и стикеров */
+.emoji-toggle {
+  border: none; background: #f3effe; width: 44px; height: 44px;
+  border-radius: 50%; font-size: 20px; cursor: pointer; flex: none;
+}
+.emoji-toggle.on { background: var(--primary); }
+.emoji-panel {
+  background: var(--card); border-radius: 16px; box-shadow: var(--shadow);
+  padding: 10px; margin-top: 8px; animation: fadeUp .25s both;
+}
+.emoji-tabs { display: flex; gap: 6px; margin-bottom: 8px; }
+.emoji-tabs button {
+  flex: 1; border: none; background: #f1eefa; border-radius: 10px;
+  padding: 7px 0; font-size: 12px; cursor: pointer; color: var(--muted);
+}
+.emoji-tabs button.sel { background: var(--primary); color: #fff; font-weight: 600; }
+.emoji-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; }
+.emoji-grid button {
+  border: none; background: none; font-size: 20px; padding: 6px 0;
+  cursor: pointer; border-radius: 8px;
+}
+.emoji-grid button:hover { background: #f3effe; }
+.sticker-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.sticker-grid button {
+  border: none; background: #f7f4fe; font-size: 38px; padding: 12px 0;
+  cursor: pointer; border-radius: 14px; transition: transform .12s;
+}
+.sticker-grid button:hover { transform: scale(1.12); background: #efe9fc; }
+
+/* Шаги верификации */
+.vstep {
+  display: flex; align-items: center; gap: 10px; padding: 10px;
+  border: 1.5px solid var(--line); border-radius: 12px; margin-bottom: 8px;
+}
+.vstep.done { border-color: var(--ok); background: #f2fbf6; }
+.vstep b { display: block; font-size: 14px; }
+.vstep small { color: var(--muted); font-size: 11px; }
+.vnum {
+  width: 26px; height: 26px; border-radius: 50%; background: #eee9fc;
+  color: var(--primary); display: grid; place-items: center;
+  font-size: 13px; font-weight: 700; flex: none;
+}
+.vstep.done .vnum { background: var(--ok); color: #fff; }
+.vbtn { width: auto; padding: 8px 12px; font-size: 12px; }
+
 /* Переключатель (switch) */
 .switch {
   width: 46px; height: 26px; border-radius: 26px; border: none; cursor: pointer;

@@ -47,10 +47,20 @@ const VIDEO_HINT = {
   disabled: "Собеседник отключил видеозвонки",
   offline: "Видеозвонок доступен, когда собеседник онлайн",
 };
+const nowTime = () => {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+};
+
 let MATCHES = [
   { match_id: "m1", other: CANDIDATES[0], last: "Привет! Рада мэтчу 🙂", unread: 1,
-    messages: [{ me: false, body: "Привет! Рада мэтчу 🙂" }] },
+    messages: [{ me: false, body: "Привет! Рада мэтчу 🙂", time: "11:02" }] },
 ];
+
+// Эмодзи и стикеры для клавиатуры чата.
+const EMOJIS = ["😊","😂","😍","🥰","😘","😉","🤗","😎","🤔","😅","🙈","😢",
+  "❤️","💜","🔥","✨","👍","🙏","👋","💐","🌹","☕","🍷","🎉"];
+const STICKERS = ["🥰","💃","🕺","🌅","🐱","🧸","🎁","🍓"];
 const PREFS = { values: "normal", goals: "important", lifestyle: "normal", family: "normal", communication: "normal" };
 
 // --- Юридические документы (как в /v1/legal/documents) ---
@@ -69,6 +79,7 @@ const state = {
   reg: { step: "welcome", phone: "", code: "", consents: {} },
   tab: "discovery", qIndex: 0, answers: {}, importance: {}, cardIndex: 0, chat: null, video: null,
   favorites: [], verified: false, videoEnabledSelf: true,
+  verify: { selfie: false, doc: false, consent: false, submitted: false },
 };
 
 const el = (id) => document.getElementById(id);
@@ -109,11 +120,12 @@ function render() {
 }
 
 // --- Приветствие (УТП + призыв к действию) ---
+// Формулировки — описывают функции сервиса, без гарантий и обещаний результата.
 const USP = [
-  ["🎯", "Совместимость, а не свайпы", "Подбор по ценностям и целям — с объяснением «почему вы подходите»"],
-  ["🛡️", "Только реальные люди", "Верификация по селфи и антифрод — без ботов и анкет-пустышек"],
-  ["🎥", "Видеознакомство «вслепую»", "Безопасный первый контакт до обмена контактами"],
-  ["💍", "Для серьёзных отношений", "Аудитория, нацеленная на семью и долгие отношения"],
+  ["🎯", "Совместимость, а не свайпы", "Подбор по ценностям и целям — с пояснением, почему анкета показана вам"],
+  ["🛡️", "Верификация профилей", "Селфи-проверка, подтверждение документом и антифрод помогают снижать число фейковых анкет"],
+  ["🎥", "Видеознакомство «вслепую»", "Видеозвонок в приложении до обмена контактами — только по обоюдному согласию"],
+  ["💍", "Для длительных отношений", "Сервис для тех, кто настроен на долгие отношения и семью"],
 ];
 
 function renderWelcome() {
@@ -122,14 +134,14 @@ function renderWelcome() {
       <div class="hero">
         <div class="wlogo">❤</div>
         <h1>Найдите того, кто действительно подходит</h1>
-        <p>Серьёзные знакомства, основанные на доверии и совместимости.</p>
+        <p>Знакомства для длительных отношений — с опорой на совместимость.</p>
       </div>
       <ul class="usp">
         ${USP.map(([i, t, s]) => `<li><span class="ico">${i}</span><span><b>${t}</b><small>${s}</small></span></li>`).join("")}
       </ul>
       <div class="cta">
         <button class="btn" onclick="goRegister()">Начать знакомиться →</button>
-        <div class="sub">Бесплатно · 18+ · конфиденциально</div>
+        <div class="sub">Регистрация бесплатна · 18+</div>
       </div>
     </div>`;
 }
@@ -241,10 +253,10 @@ function renderOnboarding() {
       ${state.verified ? "" : `
       <div class="card" style="text-align:center">
         <div class="heartbeat" style="font-size:32px">🪪</div>
-        <p style="margin:6px 0 4px;font-weight:600">Повысьте доверие</p>
+        <p style="margin:6px 0 4px;font-weight:600">Подтвердите профиль</p>
         <p class="muted" style="font-size:13px;margin:0 0 10px">
-          Верифицированные анкеты получают больше внимания и приоритет в подборе.</p>
-        <button class="btn secondary" onclick="verifyMe()">Пройти верификацию</button>
+          Подтверждённые анкеты отмечаются значком «Verified».</p>
+        <button class="btn secondary" onclick="verifyMe()">Пройти проверку</button>
       </div>`}`;
     return;
   }
@@ -466,44 +478,90 @@ function renderChat() {
         <div style="display:flex;gap:8px;align-items:flex-start">
           <span style="font-size:18px">🛡️</span>
           <div style="flex:1;font-size:12px;line-height:1.45">
-            <b>Безопасное знакомство:</b> не переводите деньги, не делитесь
-            адресом и документами. Первая встреча — в людном месте; предупредите
-            близких. Видеозвонок в приложении — безопасный способ проверить собеседника.
+            <b>Рекомендации:</b> не переводите деньги и не сообщайте платёжные
+            данные; не делитесь домашним адресом и документами. Первую встречу
+            назначайте в общественном месте и сообщите о ней близким.
           </div>
           <button class="btn ghost" style="width:auto;padding:0 4px" aria-label="Скрыть совет"
             onclick="state.chat.safetyDismissed=true;render()">✕</button>
         </div>
       </div>`}
       <div class="bubbles" id="bubbles">
-        ${m.messages.map((b) => `<div class="bubble ${b.me ? "me" : "them"}">${b.body}${
-          b.me ? `<span style="font-size:10px;opacity:.75;margin-left:6px">${b.status === "read" ? "✓✓" : "✓"}</span>` : ""
-        }</div>`).join("") || '<p class="muted" style="text-align:center">Начните разговор 👇</p>'}
+        ${m.messages.map((b) => {
+          const ticks = { sent: "✓", delivered: "✓✓", read: "✓✓" }[b.status] || "";
+          const meta = `<span class="msg-meta ${b.status === "read" ? "read" : ""}">
+            ${b.time || ""}${b.me ? " " + ticks : ""}</span>`;
+          return `<div class="bubble ${b.me ? "me" : "them"} ${b.sticker ? "sticker" : ""}">${b.body}${meta}</div>`;
+        }).join("") || '<p class="muted" style="text-align:center">Начните разговор 👇</p>'}
         ${m.typing ? '<div class="bubble them" style="opacity:.7">печатает<span class="dots">…</span></div>' : ""}
       </div>
       <div class="icebreakers">
         ${ice.map((t) => `<button class="ice" onclick="sendMsg(this.textContent)">${t}</button>`).join("")}
       </div>
+      ${state.emojiPanel ? renderEmojiPanel() : ""}
       <div class="composer">
+        <button class="emoji-toggle ${state.emojiPanel ? "on" : ""}"
+          aria-label="Эмодзи и стикеры" onclick="toggleEmoji()">😊</button>
         <input id="msg" placeholder="Сообщение..." onkeydown="if(event.key==='Enter')sendMsg(this.value)" />
-        <button onclick="sendMsg(document.getElementById('msg').value)">➤</button>
+        <button onclick="sendMsg(document.getElementById('msg').value)" aria-label="Отправить">➤</button>
       </div>
     </div>`;
   const b = el("bubbles"); if (b) b.scrollTop = b.scrollHeight;
 }
+
+// --- Клавиатура эмодзи и стикеров ---
+function renderEmojiPanel() {
+  const tab = state.emojiTab || "emoji";
+  return `
+    <div class="emoji-panel">
+      <div class="emoji-tabs">
+        <button class="${tab === "emoji" ? "sel" : ""}" onclick="state.emojiTab='emoji';render()">Эмодзи</button>
+        <button class="${tab === "sticker" ? "sel" : ""}" onclick="state.emojiTab='sticker';render()">Стикеры</button>
+      </div>
+      ${tab === "emoji"
+        ? `<div class="emoji-grid">${EMOJIS.map(
+            (e) => `<button onclick="insertEmoji('${e}')" aria-label="Эмодзи ${e}">${e}</button>`
+          ).join("")}</div>`
+        : `<div class="sticker-grid">${STICKERS.map(
+            (s) => `<button onclick="sendSticker('${s}')" aria-label="Стикер ${s}">${s}</button>`
+          ).join("")}</div>`}
+    </div>`;
+}
+window.toggleEmoji = () => { state.emojiPanel = !state.emojiPanel; render(); };
+window.insertEmoji = (e) => {
+  const input = el("msg");
+  if (input) { input.value += e; input.focus(); }
+};
+window.sendSticker = (s) => {
+  state.emojiPanel = false;
+  sendMsg(s, true);
+};
 window.closeChat = () => { state.chat = null; render(); };
-window.sendMsg = (text) => {
+window.sendMsg = (text, sticker = false) => {
   if (!text || !text.trim()) return;
-  state.chat.messages.push({ me: true, body: text.trim(), status: "sent" });
-  state.chat.last = text.trim();
-  state.chat.typing = true;  // собеседник «печатает»
+  const msg = {
+    me: true, body: text.trim(), status: "sent",
+    time: nowTime(), sticker,
+  };
+  state.chat.messages.push(msg);
+  state.chat.last = sticker ? "Стикер" : text.trim();
   render();
+
+  // Доставлено (сервер подтвердил получение получателем).
+  setTimeout(() => { msg.status = "delivered"; render(); }, 500);
+
+  // Собеседник печатает, читает и отвечает: все мои -> прочитано.
+  setTimeout(() => { state.chat.typing = true; render(); }, 900);
   setTimeout(() => {
-    // Собеседник прочитал и отвечает: мои сообщения -> ✓✓.
     state.chat.messages.forEach((b) => { if (b.me) b.status = "read"; });
     state.chat.typing = false;
-    state.chat.messages.push({ me: false, body: "Это так приятно слышать 🙂 Расскажешь подробнее?" });
+    state.chat.messages.push({
+      me: false, time: nowTime(),
+      body: sticker ? "🥰" : "Это так приятно слышать 🙂 Расскажешь подробнее?",
+      sticker,
+    });
     render();
-  }, 1100);
+  }, 1900);
 };
 
 // --- Видеознакомство «вслепую» ---
@@ -570,13 +628,7 @@ function renderProfile() {
       <h2 style="margin:0">Вы</h2>
       <span class="pill ${v ? "ok" : "info"}">${v ? "✓ Verified" : "○ Не верифицирован"}</span>
     </div>
-    ${v ? "" : `
-    <div class="card" style="text-align:center">
-      <div class="heartbeat" style="font-size:36px">🪪</div>
-      <p style="margin:8px 0 4px;font-weight:600">Пройдите верификацию</p>
-      <p class="muted" style="font-size:13px;margin:0 0 12px">Селфи-проверка повышает доверие и приоритет в подборе.</p>
-      <button class="btn" onclick="verifyMe()">Сделать селфи и верифицироваться</button>
-    </div>`}
+    ${v ? "" : renderVerifyBlock()}
     <div class="card">
       <div class="stat"><span>Намерение</span><b>Создание семьи</b></div>
       <div class="stat"><span>Тест совместимости</span><b>${answered}/${QUESTIONS.length} ответов</b></div>
@@ -603,6 +655,61 @@ function renderProfile() {
     </div>`;
 }
 
+// --- Верификация: селфи + документ + согласие ---
+function renderVerifyBlock() {
+  const vf = state.verify;
+  if (vf.submitted) {
+    return `
+    <div class="card" style="text-align:center">
+      <div class="heartbeat" style="font-size:32px">⏳</div>
+      <p style="font-weight:600;margin:6px 0 4px">Заявка на проверке</p>
+      <p class="muted" style="font-size:13px;margin:0">Обычно проверка занимает
+        до 24 часов. Мы сообщим о результате.</p>
+    </div>`;
+  }
+  const step = (done, num, title, sub, action, handler) => `
+    <div class="vstep ${done ? "done" : ""}">
+      <span class="vnum">${done ? "✓" : num}</span>
+      <div style="flex:1"><b>${title}</b><small>${sub}</small></div>
+      ${done ? "" : `<button class="btn secondary vbtn" onclick="${handler}">${action}</button>`}
+    </div>`;
+  const ready = vf.selfie && vf.doc && vf.consent;
+  return `
+    <div class="card">
+      <div style="text-align:center">
+        <div class="heartbeat" style="font-size:32px">🪪</div>
+        <p style="font-weight:600;margin:6px 0 2px">Подтвердите профиль</p>
+        <p class="muted" style="font-size:12px;margin:0 0 12px">
+          Селфи и фото документа используются только для проверки,
+          не публикуются и не видны другим пользователям.</p>
+      </div>
+      ${step(vf.selfie, 1, "Селфи", "Фото для сверки с анкетой", "Загрузить", "vfSelfie()")}
+      ${step(vf.doc, 2, "Документ", "Паспорт или водительское удостоверение", "Загрузить", "vfDoc()")}
+      <div class="consent ${vf.consent ? "checked" : ""}" style="margin-top:10px" onclick="vfConsent()">
+        <div class="box">${vf.consent ? "✓" : ""}</div>
+        <div class="ctext">Даю согласие на обработку данных документа
+          в целях проверки профиля (152-ФЗ)</div>
+      </div>
+      <button class="btn" ${ready ? "" : "disabled"} onclick="vfSubmit()">Отправить на проверку</button>
+    </div>`;
+}
+window.vfSelfie = () => { state.verify.selfie = true; toast("Селфи загружено ✓"); render(); };
+window.vfDoc = () => { state.verify.doc = true; toast("Документ загружен ✓"); render(); };
+window.vfConsent = () => { state.verify.consent = !state.verify.consent; render(); };
+window.vfSubmit = () => {
+  const vf = state.verify;
+  if (!(vf.selfie && vf.doc && vf.consent)) return;
+  vf.submitted = true;
+  toast("Заявка отправлена на проверку");
+  render();
+  // Демо: модератор одобряет через пару секунд.
+  setTimeout(() => {
+    state.verified = true;
+    toast("Профиль подтверждён ✓");
+    render();
+  }, 2500);
+};
+
 window.toggleMyVideo = () => {
   state.videoEnabledSelf = !state.videoEnabledSelf;
   // На backend: PUT /v1/profile { video_calls_enabled: ... }
@@ -612,11 +719,7 @@ window.toggleMyVideo = () => {
   render();
 };
 
-window.verifyMe = () => {
-  state.verified = true;
-  toast("Верификация пройдена ✓ +доверие");
-  render();
-};
+window.verifyMe = () => { setTab("profile"); };
 
 // --- Тост ---
 function toast(text) {

@@ -139,3 +139,28 @@ async def test_message_to_missing_match_404(
         f"/v1/matches/{uuid.uuid4()}/messages", headers=headers
     )
     assert resp.status_code == 404
+
+
+async def test_message_status_lifecycle(
+    client: AsyncClient, otp_store: MemoryOTPStore, session
+) -> None:
+    """sent -> delivered (получатель открыл историю) -> read (отметил прочтение)."""
+    a, b, match_id = await _make_match(client, otp_store, session)
+
+    await client.post(
+        f"/v1/matches/{match_id}/messages", json={"body": "Привет!"}, headers=a
+    )
+    # До получения истории получателем — sent.
+    mine = (await client.get(f"/v1/matches/{match_id}/messages", headers=a)).json()
+    assert mine[-1]["status"] == "sent"
+    assert "created_at" in mine[-1]
+
+    # Получатель открыл историю — delivered.
+    await client.get(f"/v1/matches/{match_id}/messages", headers=b)
+    mine = (await client.get(f"/v1/matches/{match_id}/messages", headers=a)).json()
+    assert mine[-1]["status"] == "delivered"
+
+    # Получатель отметил прочтение — read.
+    await client.post(f"/v1/matches/{match_id}/read", headers=b)
+    mine = (await client.get(f"/v1/matches/{match_id}/messages", headers=a)).json()
+    assert mine[-1]["status"] == "read"

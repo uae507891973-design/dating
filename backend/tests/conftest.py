@@ -8,6 +8,9 @@ os.environ.setdefault("OTP_BACKEND", "memory")
 os.environ.setdefault("JWT_SECRET", "test-secret")
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("MEDIA_DIR", tempfile.mkdtemp(prefix="davinci-media-"))
+os.environ.setdefault(
+    "VERIFY_MEDIA_DIR", tempfile.mkdtemp(prefix="davinci-verify-")
+)
 
 import pytest  # noqa: E402
 from httpx import ASGITransport, AsyncClient  # noqa: E402

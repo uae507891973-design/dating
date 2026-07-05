@@ -68,6 +68,8 @@ class Settings(BaseSettings):
 
     # Медиа / хранилище фото
     media_dir: str = "media"
+    # Приватное хранилище файлов верификации (селфи/документ) — НЕ раздаётся статикой.
+    verify_media_dir: str = "verify_media"
     media_base_url: str = "/media"
     photo_max_bytes: int = 10 * 1024 * 1024  # 10 МБ
     max_photos_per_user: int = 6

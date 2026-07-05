@@ -10,8 +10,9 @@ from app.db.base import Base, TimestampMixin
 
 
 class MessageStatus(str, enum.Enum):
-    sent = "sent"
-    read = "read"
+    sent = "sent"            # отправлено (на сервере)
+    delivered = "delivered"  # доставлено получателю (история получена)
+    read = "read"            # прочитано
 
 
 class Message(Base, TimestampMixin):

@@ -9,8 +9,18 @@ from app.models.safety import VerificationStatus
 
 
 class VerificationOut(BaseModel):
-    status: VerificationStatus
+    status: VerificationStatus | None = None  # None — процесс не начат
     is_verified: bool
+    selfie_uploaded: bool = False
+    document_uploaded: bool = False
+    submitted: bool = False  # оба файла загружены, заявка на проверке
+
+
+class ModerationVerificationOut(BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    status: VerificationStatus
+    created_at: datetime
 
 
 class ReportIn(BaseModel):

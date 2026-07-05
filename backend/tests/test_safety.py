@@ -18,29 +18,83 @@ async def _auth(client: AsyncClient, otp_store: MemoryOTPStore, phone: str) -> d
     return {"Authorization": f"Bearer {resp.json()['access_token']}"}
 
 
-async def test_selfie_verification_success(
-    client: AsyncClient, otp_store: MemoryOTPStore
+JPEG = b"\xff\xd8\xff\xe0" + b"\x00" * 32
+JPEG_FAIL = b"\xff\xd8\xff\xe0fail" + b"\x00" * 28  # маркер отказа liveness
+
+
+async def test_verification_full_flow(
+    client: AsyncClient, otp_store: MemoryOTPStore, session
 ) -> None:
     headers = await _auth(client, otp_store, "+79990000020")
-    files = {"file": ("selfie.jpg", b"live selfie", "image/jpeg")}
-    resp = await client.post("/v1/verify/selfie", files=files, headers=headers)
-    assert resp.status_code == 200
-    assert resp.json()["status"] == "approved"
-    assert resp.json()["is_verified"] is True
 
-    # Бейдж отражается в анкете.
+    # Шаг 1: селфи — заявка не отправлена, пока нет документа.
+    resp = await client.post(
+        "/v1/verify/selfie",
+        files={"file": ("selfie.jpg", JPEG, "image/jpeg")},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["selfie_uploaded"] is True
+    assert body["submitted"] is False
+    assert body["is_verified"] is False
+
+    # Шаг 2: документ — заявка отправлена на проверку.
+    resp = await client.post(
+        "/v1/verify/document",
+        files={"file": ("passport.jpg", JPEG, "image/jpeg")},
+        headers=headers,
+    )
+    body = resp.json()
+    assert body["submitted"] is True
+    assert body["status"] == "pending"
+
+    # Модератор видит заявку и одобряет.
+    mod = await _auth(client, otp_store, "+79990000029")
+    mod_user = (
+        await session.execute(select(User).where(User.phone == "+79990000029"))
+    ).scalar_one()
+    mod_user.role = UserRole.moderator
+    await session.commit()
+
+    queue = (await client.get("/v1/moderation/verifications", headers=mod)).json()
+    assert len(queue) == 1
+    decision = await client.post(
+        f"/v1/moderation/verifications/{queue[0]['id']}/decision",
+        json={"decision": "approved"},
+        headers=mod,
+    )
+    assert decision.json()["status"] == "approved"
+
+    # Бейдж отражается в анкете и статусе.
     profile = await client.get("/v1/profile", headers=headers)
     assert profile.json()["is_verified"] is True
+    status = (await client.get("/v1/verify/status", headers=headers)).json()
+    assert status["is_verified"] is True
 
 
-async def test_selfie_verification_failure(
+async def test_selfie_liveness_failure(
     client: AsyncClient, otp_store: MemoryOTPStore
 ) -> None:
     headers = await _auth(client, otp_store, "+79990000021")
-    files = {"file": ("fail.jpg", b"fail liveness", "image/jpeg")}
-    resp = await client.post("/v1/verify/selfie", files=files, headers=headers)
-    assert resp.json()["status"] == "rejected"
-    assert resp.json()["is_verified"] is False
+    resp = await client.post(
+        "/v1/verify/selfie",
+        files={"file": ("selfie.jpg", JPEG_FAIL, "image/jpeg")},
+        headers=headers,
+    )
+    assert resp.status_code == 400
+
+
+async def test_verify_rejects_non_image(
+    client: AsyncClient, otp_store: MemoryOTPStore
+) -> None:
+    headers = await _auth(client, otp_store, "+79990000028")
+    resp = await client.post(
+        "/v1/verify/document",
+        files={"file": ("doc.jpg", b"plain text", "image/jpeg")},
+        headers=headers,
+    )
+    assert resp.status_code == 400
 
 
 async def test_report_and_block_flow(
@@ -95,7 +149,7 @@ async def test_audit_log_records_actions(
     client: AsyncClient, otp_store: MemoryOTPStore, session
 ) -> None:
     headers = await _auth(client, otp_store, "+79990000025")
-    files = {"file": ("selfie.jpg", b"live", "image/jpeg")}
+    files = {"file": ("selfie.jpg", JPEG, "image/jpeg")}
     await client.post("/v1/verify/selfie", files=files, headers=headers)
 
     # Назначаем модератора и читаем аудит.
@@ -109,4 +163,4 @@ async def test_audit_log_records_actions(
     audit = await client.get("/v1/moderation/audit", headers=mod_headers)
     assert audit.status_code == 200
     actions = {row["action"] for row in audit.json()}
-    assert "verification_selfie" in actions
+    assert "verification_selfie_uploaded" in actions

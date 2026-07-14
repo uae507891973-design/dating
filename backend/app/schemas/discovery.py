@@ -17,6 +17,7 @@ class CandidateOut(BaseModel):
     reasons: list[str] = []  # «Почему вы подходите» (объяснимый мэтчинг)
     is_online: bool = False
     video_state: str = "offline"  # available | offline | disabled
+    personality: dict | None = None  # {key, title, emoji} из «Кто вы в паре?»
 
 
 class DirectMessageIn(BaseModel):

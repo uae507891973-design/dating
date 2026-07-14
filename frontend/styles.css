@@ -250,6 +250,16 @@ h2.title { margin: 4px 0 14px; font-size: 20px; }
 .vstep.done .vnum { background: var(--ok); color: #fff; }
 .vbtn { width: auto; padding: 8px 12px; font-size: 12px; }
 
+/* Тест «Кто вы в паре?» */
+.ptype-chip {
+  display: inline-block; margin-top: 10px; padding: 5px 11px;
+  border-radius: 16px; font-size: 12px; font-weight: 600;
+  background: #f3effe; color: var(--primary);
+}
+.ptest-invite { border: 1.5px dashed var(--primary-2); }
+.ptest-result { text-align: center; padding: 8px 0 2px; }
+.ptest-result .p-emoji { font-size: 56px; animation: pop .5s both; }
+
 /* Премиум */
 .premium-card { border: 1.5px solid #f1d98a; background: linear-gradient(180deg, #fffdf4, #fff); }
 .plan-row {

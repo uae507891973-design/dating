@@ -24,17 +24,17 @@ const CANDIDATES = [
     bio: "Люблю книги, горы и тёплые разговоры по вечерам.",
     primary_photo: grad("#ffd1e3", "#b34cf1"), is_verified: true, score: 94,
     common_questions: 7, reasons: ["Оба настроены на создание семьи", "Общие ценности", "Совпадение целей"],
-    online: true, video_enabled: true },
+    online: true, video_enabled: true, archetype: "romantic" },
   { user_id: "u2", display_name: "Мария", age: 28, city: "Москва",
     bio: "Архитектор. Ищу серьёзные отношения и партнёра по путешествиям.",
     primary_photo: grad("#c8f7d4", "#6c4cf1"), is_verified: true, score: 81,
     common_questions: 7, reasons: ["Совпадение целей", "Взгляды на семью"],
-    online: false, video_enabled: true },
+    online: false, video_enabled: true, archetype: "seeker" },
   { user_id: "u3", display_name: "Екатерина", age: 34, city: "Химки",
     bio: "Врач. Ценю честность и заботу.",
     primary_photo: grad("#ffe7b3", "#ff5e8a"), is_verified: false, score: 67,
     common_questions: 6, reasons: ["Стиль общения"],
-    online: true, video_enabled: false },
+    online: true, video_enabled: false, archetype: "harmonizer" },
 ];
 
 // Состояние видеозвонка к кандидату (зеркало backend video_state).
@@ -55,6 +55,77 @@ const nowTime = () => {
 let MATCHES = [
   { match_id: "m1", other: CANDIDATES[0], last: "Привет! Рада мэтчу 🙂", unread: 1,
     messages: [{ me: false, body: "Привет! Рада мэтчу 🙂", time: "11:02" }] },
+];
+
+// --- Тест «Кто вы в паре?» (типаж личности, добавляется в профиль) ---
+const PARCHETYPES = {
+  romantic: { title: "Романтик", emoji: "🌹", short: "Чувства прежде всего",
+    description: "Вы живёте сердцем: замечаете детали, помните важные даты и умеете превращать обычный вечер в событие. Для вас отношения — это эмоциональная близость, тепло и знаки внимания. Партнёр рядом с вами чувствует себя особенным — это ваш главный дар.",
+    strengths: ["эмоциональная открытость", "внимание к деталям", "умение удивлять"],
+    in_pair: "В паре вы — источник тепла. Вам комфортно с теми, кто отвечает вниманием на внимание и не стесняется говорить о чувствах." },
+  keeper: { title: "Хранитель", emoji: "🏡", short: "Надёжность и забота",
+    description: "Ваша сила — в постоянстве. Вы держите слово, помните о мелочах быта и создаёте вокруг ощущение безопасности. Вам важен дом как место силы и человек, с которым можно строить общее будущее шаг за шагом.",
+    strengths: ["надёжность", "забота", "практичность"],
+    in_pair: "В паре вы — опора. Лучше всего вам с теми, кто ценит стабильность и вкладывается в отношения так же последовательно." },
+  seeker: { title: "Искатель", emoji: "🧭", short: "Новизна и впечатления",
+    description: "Вам нужен воздух и движение: новые места, идеи, спонтанные планы. Рутина утомляет, а неожиданность вдохновляет. В отношениях вы приносите лёгкость и ощущение приключения — с вами не бывает скучно.",
+    strengths: ["лёгкость", "любознательность", "смелость"],
+    in_pair: "В паре вы — двигатель впечатлений. Вам подходит человек, который разделит дорогу, а не будет держать на месте." },
+  strategist: { title: "Стратег", emoji: "🧠", short: "Глубина и цели",
+    description: "Вы цените смысл: в разговорах, поступках и планах. Прежде чем действовать — обдумываете, зато ваши решения надёжны. В отношениях вам важно общее направление: куда идём и зачем. Глубокий разговор для вас лучше ста комплиментов.",
+    strengths: ["рассудительность", "честность", "целеустремлённость"],
+    in_pair: "В паре вы — навигатор. Комфортнее всего вам с тем, кто уважает личное пространство и любит говорить по существу." },
+  inspirer: { title: "Вдохновитель", emoji: "☀️", short: "Энергия и общение",
+    description: "Вы заряжаете людей: вокруг вас легко, шумно и тепло. Вы умеете знакомиться, поддерживать и вытаскивать близких из хандры. В отношениях вам важно делиться — эмоциями, друзьями, планами и смехом.",
+    strengths: ["оптимизм", "общительность", "поддержка"],
+    in_pair: "В паре вы — солнце. Вам хорошо с тем, кто радуется вашей энергии и добавляет к ней свою." },
+  harmonizer: { title: "Гармонизатор", emoji: "🌿", short: "Баланс и понимание",
+    description: "Вы умеете слушать так, что людям становится спокойнее. Конфликты гасите, настроение чувствуете без слов. В отношениях создаёте атмосферу принятия, где можно быть собой. Ваше спокойствие — не слабость, а редкий талант.",
+    strengths: ["эмпатия", "терпение", "дипломатичность"],
+    in_pair: "В паре вы — тихая гавань. Вам подходит человек, который ценит мир в доме и умеет слышать." },
+};
+const PDISCLAIMER = "Результат носит развлекательно-ознакомительный характер и не является психологическим тестом или диагнозом.";
+const PQUESTIONS = [
+  ["Идеальное первое свидание — это...",
+    ["Ужин при свечах и разговор о чувствах", "romantic"],
+    ["Уютная прогулка по любимым местам", "keeper"],
+    ["Что-то неожиданное: квест или поездка без плана", "seeker"],
+    ["Кофе и долгий разговор о жизни и смыслах", "strategist"]],
+  ["В компании друзей вы чаще всего...",
+    ["Душа компании — заряжаю всех", "inspirer"],
+    ["Слушаю и слежу, чтобы всем было хорошо", "harmonizer"],
+    ["Предлагаю новые идеи и авантюры", "seeker"],
+    ["Веду глубокие разговоры в узком кругу", "strategist"]],
+  ["Размолвка в паре. Ваш первый шаг?",
+    ["Обнять и поговорить о чувствах", "romantic"],
+    ["Спокойно разобрать ситуацию и найти решение", "strategist"],
+    ["Сгладить углы и предложить компромисс", "harmonizer"],
+    ["Взять небольшую паузу и обсудить позже", "keeper"]],
+  ["Лучший подарок для вас —",
+    ["Сделанный своими руками, с историей", "romantic"],
+    ["Практичный и действительно нужный", "keeper"],
+    ["Билеты в путешествие", "seeker"],
+    ["Вечер-сюрприз с близкими людьми", "inspirer"]],
+  ["Выходные мечты выглядят так:",
+    ["Дом, плед и любимый человек рядом", "keeper"],
+    ["Новый город или незнакомый маршрут", "seeker"],
+    ["Шумная встреча с друзьями и смех", "inspirer"],
+    ["Тишина, природа, неспешные разговоры", "harmonizer"]],
+  ["В отношениях для вас важнее всего:",
+    ["Страсть и романтика", "romantic"],
+    ["Надёжность и спокойствие", "keeper"],
+    ["Общие цели и развитие", "strategist"],
+    ["Мир и взаимопонимание", "harmonizer"]],
+  ["Как вы планируете жизнь?",
+    ["Подробный план и ясные цели", "strategist"],
+    ["Общий ориентир, но люблю неожиданности", "seeker"],
+    ["Живу настоящим моментом и чувствами", "romantic"],
+    ["Планирую вместе с близкими, учитывая всех", "harmonizer"]],
+  ["Друзья скорее скажут о вас:",
+    ["«С ним/с ней всегда весело»", "inspirer"],
+    ["«На него/на неё можно положиться»", "keeper"],
+    ["«Умеет слушать и понимать»", "harmonizer"],
+    ["«Всегда чем-то удивит»", "seeker"]],
 ];
 
 // Эмодзи и стикеры для клавиатуры чата.
@@ -81,6 +152,7 @@ const state = {
   favorites: [], verified: false, videoEnabledSelf: true,
   verify: { selfie: false, doc: false, consent: false, submitted: false },
   premium: false, boost: false,
+  ptest: { active: false, idx: 0, scores: {}, result: null, saved: false },
 };
 
 const el = (id) => document.getElementById(id);
@@ -271,6 +343,7 @@ window.finishReg = () => {
 
 // --- Онбординг ---
 function renderOnboarding() {
+  if (state.ptest.active) { renderPTest(); return; }
   const total = QUESTIONS.length;
   const done = Object.keys(state.answers).length;
   if (state.qIndex >= total) {
@@ -282,6 +355,19 @@ function renderOnboarding() {
         <p class="muted">Намерение: <b>создание семьи</b></p>
         <button class="btn" onclick="setTab('discovery')">Перейти к подбору →</button>
       </div>
+      ${state.ptest.result ? "" : `
+      <div class="card ptest-invite">
+        <div style="display:flex;gap:12px;align-items:center">
+          <span style="font-size:32px">🎭</span>
+          <div style="flex:1">
+            <b>Ещё один — «Кто вы в паре?»</b>
+            <small style="display:block;color:var(--muted)">8 вопросов · ~2 минуты.
+              Узнайте свой типаж и добавьте его в профиль.</small>
+          </div>
+        </div>
+        <button class="btn secondary" style="margin-top:10px" onclick="startPTest()">
+          Пройти тест</button>
+      </div>`}
       ${state.verified ? "" : `
       <div class="card" style="text-align:center">
         <div class="heartbeat" style="font-size:32px">🪪</div>
@@ -312,6 +398,69 @@ function renderOnboarding() {
     </div>`;
 }
 window.answer = (id, v) => { state.answers[id] = v; setTimeout(() => { state.qIndex++; render(); }, 180); };
+
+// --- Тест «Кто вы в паре?» ---
+window.startPTest = () => {
+  state.ptest = { active: true, idx: 0, scores: {}, result: null, saved: false };
+  setTab("onboarding");
+};
+function renderPTest() {
+  const pt = state.ptest;
+  if (pt.result) { renderPResult(); return; }
+  const [text, ...opts] = PQUESTIONS[pt.idx];
+  screen().innerHTML = `
+    <h2 class="title">🎭 Кто вы в паре?</h2>
+    <div class="progress"><i style="width:${(pt.idx / PQUESTIONS.length) * 100}%"></i></div>
+    <div class="muted" style="font-size:13px">вопрос ${pt.idx + 1}/${PQUESTIONS.length}</div>
+    <div class="q-text">${text}</div>
+    <div class="scale">
+      ${opts.map(([label, arch]) =>
+        `<button onclick="pAnswer('${arch}')">${label}</button>`).join("")}
+    </div>`;
+}
+window.pAnswer = (arch) => {
+  const pt = state.ptest;
+  pt.scores[arch] = (pt.scores[arch] || 0) + 1;
+  pt.idx += 1;
+  if (pt.idx >= PQUESTIONS.length) {
+    pt.result = Object.keys(pt.scores).sort(
+      (a, b) => pt.scores[b] - pt.scores[a]
+    )[0];
+  }
+  setTimeout(render, 160);
+};
+function renderPResult() {
+  const a = PARCHETYPES[state.ptest.result];
+  screen().innerHTML = `
+    <div class="ptest-result">
+      <div class="p-emoji">${a.emoji}</div>
+      <h2 style="margin:4px 0 2px">${a.title}</h2>
+      <p class="muted" style="margin:0 0 14px">${a.short}</p>
+    </div>
+    <div class="card"><p style="margin:0;font-size:14px;line-height:1.55">${a.description}</p></div>
+    <div class="card">
+      <h4 style="margin:0 0 8px;font-size:13px;color:var(--muted);text-transform:uppercase">Сильные стороны</h4>
+      ${a.strengths.map((s) => `<div class="reason"><span class="dot"></span>${s}</div>`).join("")}
+    </div>
+    <div class="card"><p style="margin:0;font-size:13px;line-height:1.5">💞 ${a.in_pair}</p></div>
+    ${state.ptest.saved
+      ? `<div class="card" style="text-align:center"><span class="pill ok">✓ Добавлено в профиль</span></div>`
+      : `<button class="btn" onclick="pSave()">Добавить в профиль</button>
+         <button class="btn ghost" onclick="pSkipSave()">Не сейчас</button>`}
+    <p class="muted" style="font-size:10px;text-align:center;margin-top:10px">${PDISCLAIMER}</p>`;
+}
+window.pSave = () => {
+  // На backend: POST /v1/personality/submit {add_to_profile: true}
+  state.ptest.saved = true;
+  state.ptest.active = false;
+  toast("Типаж добавлен в профиль 🎭");
+  setTab("profile");
+};
+window.pSkipSave = () => {
+  state.ptest.active = false;
+  toast("Результат сохранён без публикации");
+  setTab("discovery");
+};
 window.setImp = (id, lv) => { state.importance[id] = lv; render(); };
 
 // --- Подбор (объяснимый мэтчинг) ---
@@ -385,6 +534,7 @@ function renderDiscovery() {
         <div class="reasons">
           <h4>Почему вы подходите</h4>
           ${c.reasons.map((x) => `<div class="reason"><span class="dot"></span>${x}</div>`).join("")}
+          ${c.archetype ? `<span class="ptype-chip">${PARCHETYPES[c.archetype].emoji} ${PARCHETYPES[c.archetype].title}</span>` : ""}
           <p class="muted" style="font-size:13px;margin-top:10px">${c.bio}</p>
         </div>
         <div class="actions">
@@ -689,6 +839,7 @@ function renderProfile() {
       <span class="pill ${v ? "ok" : "info"}">${v ? "✓ Verified" : "○ Не верифицирован"}</span>
     </div>
     ${v ? "" : renderVerifyBlock()}
+    ${renderPersonalityBlock()}
     ${renderPremiumBlock()}
     <div class="card">
       <div class="stat"><span>Намерение</span><b>Создание семьи</b></div>
@@ -769,6 +920,40 @@ window.vfSubmit = () => {
     toast("Профиль подтверждён ✓");
     render();
   }, 2500);
+};
+
+// --- Блок «Кто вы в паре?» в профиле ---
+function renderPersonalityBlock() {
+  const saved = state.ptest.saved && state.ptest.result;
+  if (saved) {
+    const a = PARCHETYPES[state.ptest.result];
+    return `
+    <div class="card">
+      <h4 style="margin:0 0 8px;font-size:13px;color:var(--muted);text-transform:uppercase">Кто вы в паре</h4>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:30px">${a.emoji}</span>
+        <div style="flex:1"><b>${a.title}</b>
+          <small style="display:block;color:var(--muted)">${a.short} · виден в вашей анкете</small></div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn secondary" onclick="startPTest()">Пройти заново</button>
+        <button class="btn ghost" onclick="pRemove()">Убрать</button>
+      </div>
+    </div>`;
+  }
+  return `
+    <div class="card" style="display:flex;align-items:center;gap:12px">
+      <span style="font-size:28px">🎭</span>
+      <div style="flex:1"><b style="font-size:14px">Тест «Кто вы в паре?»</b>
+        <small style="display:block;color:var(--muted);font-size:12px">2 минуты — типаж появится в анкете</small></div>
+      <button class="btn secondary vbtn" onclick="startPTest()">Пройти</button>
+    </div>`;
+}
+window.pRemove = () => {
+  // На backend: DELETE /v1/personality/result
+  state.ptest.saved = false;
+  toast("Типаж убран из профиля");
+  render();
 };
 
 // --- Премиум (Стадия 4: монетизация) ---

@@ -80,6 +80,14 @@ async def discover(
     candidates = await get_candidates(
         db, user, limit=min(limit, 50), max_distance_km=max_distance_km
     )
+    from app.services.personality import ARCHETYPES
+
+    def _personality(c):
+        a = ARCHETYPES.get(c.profile.personality_archetype or "")
+        if a is None:
+            return None
+        return {"key": a.key, "title": a.title, "emoji": a.emoji}
+
     return [
         CandidateOut(
             user_id=c.profile.user_id,
@@ -93,6 +101,7 @@ async def discover(
             reasons=c.reasons,
             is_online=c.is_online,
             video_state=c.video_state,
+            personality=_personality(c),
         )
         for c in candidates
     ]

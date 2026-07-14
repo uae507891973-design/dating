@@ -31,6 +31,7 @@ class ProfileOut(BaseModel):
     bio: str | None
     video_calls_enabled: bool = True
     is_verified: bool = False
+    personality_archetype: str | None = None
 
 
 class PhotoOut(BaseModel):

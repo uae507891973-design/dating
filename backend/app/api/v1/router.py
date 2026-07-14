@@ -13,6 +13,7 @@ from app.api.v1.routes import (
     moderation,
     notifications,
     onboarding,
+    personality,
     profile,
     safety,
     verify,
@@ -33,4 +34,5 @@ api_router.include_router(chat.router, prefix="/v1")
 api_router.include_router(video.router, prefix="/v1")
 api_router.include_router(notifications.router, prefix="/v1")
 api_router.include_router(billing.router, prefix="/v1")
+api_router.include_router(personality.router, prefix="/v1")
 api_router.include_router(moderation.router, prefix="/v1")

@@ -65,5 +65,9 @@ class Profile(Base, TimestampMixin):
     boost_until: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    # Типаж из теста «Кто вы в паре?» (добавляется в профиль по желанию).
+    personality_archetype: Mapped[str | None] = mapped_column(
+        String(32), nullable=True
+    )
 
     user: Mapped["User"] = relationship(back_populates="profile")  # noqa: F821
